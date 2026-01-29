@@ -56,7 +56,7 @@ get_tag() {
     esac
 }
 
-# @cal Extract the subject line count from @tag:N syntax
+# @cal:18 Extract the subject line count from @tag:N syntax
 # parsing leading digits after the colon into _gsc
 get_subject_count() {
     _gsc=0
