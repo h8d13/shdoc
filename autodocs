@@ -1,0 +1,540 @@
+#!/bin/sh
+set -e
+
+# @set:6 Configure scan directory and output path
+# from CLI arguments with field delimiters
+SCAN_DIR="${1:-.}"
+OUTPUT="${2:-readme.md}"
+SCAN_DIR="${SCAN_DIR%/}"
+SCAN_DIR=$(cd "$SCAN_DIR" && pwd)
+TAB=$(printf '\t')
+US=$(printf '\037')
+
+_trim_lead() {
+    _tl="$1"
+    while :; do
+        case "$_tl" in
+            ' '*)  _tl="${_tl# }" ;;
+            '	'*) _tl="${_tl#	}" ;;
+            *)     break ;;
+        esac
+    done
+}
+
+_trim_trail() {
+    _tt="$1"
+    while :; do
+        case "$_tt" in
+            *' ')  _tt="${_tt% }" ;;
+            *'	') _tt="${_tt%	}" ;;
+            *)     break ;;
+        esac
+    done
+}
+
+_trim() {
+    _trim_lead "$1"
+    _trim_trail "$_tl"
+    _tr="$_tt"
+}
+
+# @cal:6 Test whether a line contains any documentation tag
+has_tag() {
+    case "$1" in
+        *'@set'*|*'@ass'*|*'@cal'*|*'@rai'*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# @cal:8 Classify a tagged line into SET, ASS, CAL, or RAI
+get_tag() {
+    case "$1" in
+        *'@set'*) _gt='SET' ;;
+        *'@ass'*) _gt='ASS' ;;
+        *'@cal'*) _gt='CAL' ;;
+        *'@rai'*) _gt='RAI' ;;
+    esac
+}
+
+# @cal Extract the subject line count from @tag:N syntax
+# parsing leading digits after the colon into _gsc
+get_subject_count() {
+    _gsc=0
+    case "$1" in
+        *'@set:'[0-9]*) _gsc_r="${1#*@set:}" ;;
+        *'@ass:'[0-9]*) _gsc_r="${1#*@ass:}" ;;
+        *'@cal:'[0-9]*) _gsc_r="${1#*@cal:}" ;;
+        *'@rai:'[0-9]*) _gsc_r="${1#*@rai:}" ;;
+        *) return ;;
+    esac
+    _gsc=""
+    while :; do
+        case "$_gsc_r" in
+            [0-9]*) _gsc="${_gsc}${_gsc_r%"${_gsc_r#?}"}"; _gsc_r="${_gsc_r#?}" ;;
+            *) break ;;
+        esac
+    done
+    [ -z "$_gsc" ] && _gsc=0 || :
+}
+
+_strip_tag_num() {
+    _st="${1%%"$2":*}"
+    _stn_rest="${1#*"$2":}"
+    while :; do case "$_stn_rest" in [0-9]*) _stn_rest="${_stn_rest#?}" ;; *) break ;; esac; done
+    case "$_stn_rest" in ' '*) _stn_rest="${_stn_rest# }" ;; esac
+    _st="${_st}${_stn_rest}"
+}
+
+# @cal Remove @tag or @tag:N syntax from comment text
+strip_tags() {
+    case "$1" in
+        *'@set:'[0-9]*) _strip_tag_num "$1" "@set" ;;
+        *'@set '*)      _st="${1%%@set *}${1#*@set }" ;;
+        *'@set'*)       _st="${1%%@set*}${1#*@set}" ;;
+        *'@ass:'[0-9]*) _strip_tag_num "$1" "@ass" ;;
+        *'@ass '*)      _st="${1%%@ass *}${1#*@ass }" ;;
+        *'@ass'*)       _st="${1%%@ass*}${1#*@ass}" ;;
+        *'@cal:'[0-9]*) _strip_tag_num "$1" "@cal" ;;
+        *'@cal '*)      _st="${1%%@cal *}${1#*@cal }" ;;
+        *'@cal'*)       _st="${1%%@cal*}${1#*@cal}" ;;
+        *'@rai:'[0-9]*) _strip_tag_num "$1" "@rai" ;;
+        *'@rai '*)      _st="${1%%@rai *}${1#*@rai }" ;;
+        *'@rai'*)       _st="${1%%@rai*}${1#*@rai}" ;;
+        *)              _st="$1" ;;
+    esac
+}
+
+# @cal:13 Detect comment style from a source line
+# supporting hash, dslash, cblock, html, dquote, squote, ddash
+detect_style() {
+    _trim_lead "$1"
+    case "$_tl" in
+        '<!--'*)    _ds='html'   ;;
+        '/*'*)      _ds='cblock' ;;
+        '//'*)      _ds='dslash' ;;
+        '#'*)       _ds='hash'   ;;
+        '"""'*)     _ds='dquote' ;;
+        "'''"*)     _ds='squote' ;;
+        '--'*)      _ds='ddash'  ;;
+        *)          _ds='none'   ;;
+    esac
+}
+
+# @cal Strip comment delimiters and extract inner text
+# for all styles including block continuations
+strip_comment() {
+    case "$2" in
+        hash)
+            _sc="${1#*#}"
+            _trim_lead "$_sc"; _sc="$_tl"
+            ;;
+        dslash)
+            _sc="${1#*//}"
+            _trim_lead "$_sc"; _sc="$_tl"
+            ;;
+        ddash)
+            _sc="${1#*--}"
+            _trim_lead "$_sc"; _sc="$_tl"
+            ;;
+        cblock)
+            _sc="${1#*\/\*}"
+            _trim_trail "$_sc"; _sc="$_tt"
+            case "$_sc" in *'*/') _sc="${_sc%\*\/}" ;; esac
+            _trim "$_sc"; _sc="$_tr"
+            ;;
+        html)
+            _sc="${1#*<!--}"
+            _trim_trail "$_sc"; _sc="$_tt"
+            case "$_sc" in *'-->') _sc="${_sc%-->}" ;; esac
+            _trim "$_sc"; _sc="$_tr"
+            ;;
+        cblock_cont)
+            _sc="$1"
+            _trim_trail "$_sc"; _sc="$_tt"
+            case "$_sc" in *'*/') _sc="${_sc%\*\/}" ;; esac
+            _trim_lead "$_sc"; _sc="$_tl"
+            case "$_sc" in '*'*) _sc="${_sc#\*}"; _trim_lead "$_sc"; _sc="$_tl" ;; esac
+            _trim_trail "$_sc"; _sc="$_tt"
+            ;;
+        html_cont)
+            _sc="$1"
+            _trim_trail "$_sc"; _sc="$_tt"
+            case "$_sc" in *'-->') _sc="${_sc%-->}" ;; esac
+            _trim "$_sc"; _sc="$_tr"
+            ;;
+        dquote)
+            _sc="${1#*\"\"\"}"
+            _trim_trail "$_sc"; _sc="$_tt"
+            case "$_sc" in *'"""') _sc="${_sc%\"\"\"}" ;; esac
+            _trim "$_sc"; _sc="$_tr"
+            ;;
+        squote)
+            _sc="${1#*\'\'\'}"
+            _trim_trail "$_sc"; _sc="$_tt"
+            case "$_sc" in *"'''") _sc="${_sc%\'\'\'}" ;; esac
+            _trim "$_sc"; _sc="$_tr"
+            ;;
+        docstring_cont)
+            _sc="$1"
+            _trim_trail "$_sc"; _sc="$_tt"
+            case "$_sc" in
+                *'"""') _sc="${_sc%\"\"\"}" ;;
+                *"'''") _sc="${_sc%\'\'\'}" ;;
+            esac
+            _trim "$_sc"; _sc="$_tr"
+            ;;
+    esac
+}
+
+# @cal Walk one file as a line-by-line state machine
+# extracting tagged comments into tab-delimited records
+process_file() {
+    # @set:12 Initialize file path and state machine variables
+    # for tracking comment blocks and subject capture
+    _pf_path="$1"
+    _pf_rel="$_pf_path"
+    _pf_ln=0
+    _pf_in=""
+    _pf_tag=""
+    _pf_start=""
+    _pf_text=""
+    _pf_nsubj=0
+    _pf_cap_want=0
+    _pf_capture=0
+    _pf_subj=""
+    _pf_pending=""
+
+    # @cal Emit a documentation record or defer for subject capture
+    _emit() {
+        if [ -n "$_pf_tag" ] && [ -n "$_pf_text" ]; then
+            _trim "$_pf_text"
+            if [ -n "$_tr" ]; then
+                if [ "$_pf_nsubj" -gt 0 ] 2>/dev/null; then
+                    _pf_pending="${_pf_tag}${TAB}${_pf_rel}:${_pf_start}${TAB}${_tr}"
+                    _pf_cap_want="$_pf_nsubj"
+                    _pf_subj=""
+                else
+                    printf '%s\t%s:%s\t%s\t\n' "$_pf_tag" "$_pf_rel" "$_pf_start" "$_tr"
+                fi
+            fi
+        fi
+        _pf_in=""
+        _pf_tag=""
+        _pf_start=""
+        _pf_text=""
+        _pf_nsubj=0
+    }
+
+    # @cal Flush deferred record with captured subject lines
+    _flush_pending() {
+        if [ -n "$_pf_pending" ]; then
+            printf '%s\t%s\n' "$_pf_pending" "$_pf_subj"
+            _pf_pending=""
+            _pf_subj=""
+            _pf_capture=0
+        fi
+    }
+
+    while IFS="" read -r _pf_line || [ -n "$_pf_line" ]; do
+        _pf_ln=$((_pf_ln + 1))
+
+        if [ "$_pf_capture" -gt 0 ]; then
+            if [ -n "$_pf_subj" ]; then
+                _pf_subj="${_pf_subj}${US}${_pf_line}"
+            else
+                _pf_subj="$_pf_line"
+            fi
+            _pf_capture=$((_pf_capture - 1))
+            [ "$_pf_capture" -eq 0 ] && _flush_pending || :
+            continue
+        fi
+
+        detect_style "$_pf_line"
+        _pf_style="$_ds"
+
+        if [ "$_pf_in" = "cblock" ]; then
+            case "$_pf_line" in
+                *'*/'*)
+                    strip_comment "$_pf_line" "cblock_cont"
+                    [ -n "$_sc" ] && _pf_text="${_pf_text}${US}${_sc}" || :
+                    _emit
+                    ;;
+                *)
+                    strip_comment "$_pf_line" "cblock_cont"
+                    _pf_text="${_pf_text}${US}${_sc}"
+                    ;;
+            esac
+            continue
+        fi
+
+        if [ "$_pf_in" = "html" ]; then
+            case "$_pf_line" in
+                *'-->'*)
+                    strip_comment "$_pf_line" "html_cont"
+                    [ -n "$_sc" ] && _pf_text="${_pf_text}${US}${_sc}" || :
+                    _emit
+                    ;;
+                *)
+                    strip_comment "$_pf_line" "html_cont"
+                    _pf_text="${_pf_text}${US}${_sc}"
+                    ;;
+            esac
+            continue
+        fi
+
+        if [ "$_pf_in" = "cblock_scan" ]; then
+            case "$_pf_line" in
+                *'*/'*)
+                    _pf_in=""
+                    ;;
+                *)
+                    if has_tag "$_pf_line"; then
+                        get_tag "$_pf_line"; _pf_tag="$_gt"
+                        _pf_start="$_pf_ln"
+                        strip_comment "$_pf_line" "cblock_cont"
+                        get_subject_count "$_sc"; _pf_nsubj="$_gsc"
+                        strip_tags "$_sc"; _pf_text="$_st"
+                        _pf_in="cblock"
+                    fi
+                    ;;
+            esac
+            continue
+        fi
+
+        if [ "$_pf_in" = "html_scan" ]; then
+            case "$_pf_line" in
+                *'-->'*)
+                    _pf_in=""
+                    ;;
+                *)
+                    if has_tag "$_pf_line"; then
+                        get_tag "$_pf_line"; _pf_tag="$_gt"
+                        _pf_start="$_pf_ln"
+                        strip_comment "$_pf_line" "html_cont"
+                        get_subject_count "$_sc"; _pf_nsubj="$_gsc"
+                        strip_tags "$_sc"; _pf_text="$_st"
+                        _pf_in="html"
+                    fi
+                    ;;
+            esac
+            continue
+        fi
+
+        if [ "$_pf_in" = "dquote" ] || [ "$_pf_in" = "squote" ]; then
+            if [ "$_pf_in" = "dquote" ]; then
+                _pf_close='"""'
+            else
+                _pf_close="'''"
+            fi
+            case "$_pf_line" in
+                *"$_pf_close"*)
+                    strip_comment "$_pf_line" "docstring_cont"
+                    [ -n "$_sc" ] && _pf_text="${_pf_text}${US}${_sc}" || :
+                    _emit
+                    ;;
+                *)
+                    strip_comment "$_pf_line" "docstring_cont"
+                    _pf_text="${_pf_text}${US}${_sc}"
+                    ;;
+            esac
+            continue
+        fi
+
+        if [ "$_pf_in" = "dquote_scan" ] || [ "$_pf_in" = "squote_scan" ]; then
+            if [ "$_pf_in" = "dquote_scan" ]; then
+                _pf_close='"""'
+                _pf_promote="dquote"
+            else
+                _pf_close="'''"
+                _pf_promote="squote"
+            fi
+            case "$_pf_line" in
+                *"$_pf_close"*)
+                    _pf_in=""
+                    ;;
+                *)
+                    if has_tag "$_pf_line"; then
+                        get_tag "$_pf_line"; _pf_tag="$_gt"
+                        _pf_start="$_pf_ln"
+                        strip_comment "$_pf_line" "docstring_cont"
+                        get_subject_count "$_sc"; _pf_nsubj="$_gsc"
+                        strip_tags "$_sc"; _pf_text="$_st"
+                        _pf_in="$_pf_promote"
+                    fi
+                    ;;
+            esac
+            continue
+        fi
+
+        if [ -n "$_pf_in" ]; then
+            if [ "$_pf_style" = "$_pf_in" ]; then
+                if has_tag "$_pf_line"; then
+                    _emit
+                else
+                    strip_comment "$_pf_line" "$_pf_style"
+                    _pf_text="${_pf_text}${US}${_sc}"
+                    continue
+                fi
+            else
+                _emit
+            fi
+        fi
+
+        if has_tag "$_pf_line" && [ "$_pf_style" != "none" ]; then
+            get_tag "$_pf_line"; _pf_tag="$_gt"
+            _pf_start="$_pf_ln"
+            strip_comment "$_pf_line" "$_pf_style"
+            get_subject_count "$_sc"; _pf_nsubj="$_gsc"
+            strip_tags "$_sc"; _pf_text="$_st"
+
+            case "$_pf_style" in
+                hash|dslash|ddash)
+                    _pf_in="$_pf_style"
+                    ;;
+                cblock)
+                    case "$_pf_line" in
+                        *'*/'*) _emit ;;
+                        *)      _pf_in="cblock" ;;
+                    esac
+                    ;;
+                html)
+                    case "$_pf_line" in
+                        *'-->'*) _emit ;;
+                        *)       _pf_in="html" ;;
+                    esac
+                    ;;
+                dquote)
+                    _pf_rest="${_pf_line#*\"\"\"}"
+                    case "$_pf_rest" in
+                        *'"""'*) _emit ;;
+                        *)       _pf_in="dquote" ;;
+                    esac
+                    ;;
+                squote)
+                    _pf_rest="${_pf_line#*\'\'\'}"
+                    case "$_pf_rest" in
+                        *"'''"*) _emit ;;
+                        *)       _pf_in="squote" ;;
+                    esac
+                    ;;
+            esac
+        elif [ "$_pf_style" = "cblock" ]; then
+            case "$_pf_line" in
+                *'*/'*) ;;
+                *)      _pf_in="cblock_scan" ;;
+            esac
+        elif [ "$_pf_style" = "html" ]; then
+            case "$_pf_line" in
+                *'-->'*) ;;
+                *)       _pf_in="html_scan" ;;
+            esac
+        elif [ "$_pf_style" = "dquote" ]; then
+            _pf_rest="${_pf_line#*\"\"\"}"
+            case "$_pf_rest" in
+                *'"""'*) ;;
+                *)       _pf_in="dquote_scan" ;;
+            esac
+        elif [ "$_pf_style" = "squote" ]; then
+            _pf_rest="${_pf_line#*\'\'\'}"
+            case "$_pf_rest" in
+                *"'''"*) ;;
+                *)       _pf_in="squote_scan" ;;
+            esac
+        fi
+
+        if [ "$_pf_cap_want" -gt 0 ] && [ "$_pf_style" = "none" ]; then
+            _pf_capture="$_pf_cap_want"
+            _pf_cap_want=0
+            _pf_subj="$_pf_line"
+            _pf_capture=$((_pf_capture - 1))
+            [ "$_pf_capture" -eq 0 ] && _flush_pending || :
+        fi
+
+    done < "$_pf_path"
+
+    _emit
+    if [ "$_pf_cap_want" -gt 0 ]; then
+        _pf_cap_want=0
+    fi
+    _flush_pending
+}
+
+# @cal Render intermediate records into grouped markdown
+# with blockquotes for text and fenced code blocks for subjects
+render_markdown() {
+    _rm_data="$1"
+    printf '# Autodocs\n\n'
+
+    _render_section() {
+        _rs_prefix="$1"
+        _rs_title="$2"
+        _rs_label="$3"
+
+        _rs_entries=$(printf '%s\n' "$_rm_data" | grep "^${_rs_prefix}${TAB}" 2>/dev/null || true)
+        [ -z "$_rs_entries" ] && return || :
+
+        printf '## %s (%s)\n\n' "$_rs_title" "$_rs_label"
+        printf '%s\n' "$_rs_entries" | while IFS="$TAB" read -r _rs_tag _rs_loc _rs_text _rs_subj; do
+            printf "### \`%s\`\n" "$_rs_loc"
+            printf '%s' "$_rs_text" | tr '\037' '\n' | while IFS="" read -r _rs_line || [ -n "$_rs_line" ]; do
+                _trim "$_rs_line"
+                [ -n "$_tr" ] && printf '> %s\n' "$_tr" || :
+            done
+            if [ -n "$_rs_subj" ]; then
+                printf '```\n'
+                printf '%s' "$_rs_subj" | tr '\037' '\n' | while IFS="" read -r _rs_line || [ -n "$_rs_line" ]; do
+                    printf '%s\n' "$_rs_line"
+                done
+                printf '```\n'
+            fi
+            printf '\n'
+        done
+    }
+
+    _render_section "SET" "Setters" "@set"
+    _render_section "ASS" "Asserts" "@ass"
+    _render_section "CAL" "Callers" "@cal"
+    _render_section "RAI" "Raisers" "@rai"
+}
+
+main() {
+    # @cal:3 Discover files containing documentation tags
+    _m_files=$(grep -rl -I \
+        -e '@set' -e '@ass' -e '@cal' -e '@rai' \
+        "$SCAN_DIR" 2>/dev/null) || true
+
+    # @ass Verify tagged files were discovered
+    if [ -z "$_m_files" ]; then
+        # @rai:3 Handle missing tagged files
+        # with empty output and stderr warning
+        printf '# Autodocs\n\nNo tagged documentation found.\n' > "$OUTPUT"
+        printf 'autodocs: no tags found under %s\n' "$SCAN_DIR" >&2
+        return 0
+    fi
+
+    _m_out_base=$(basename "$OUTPUT")
+
+    # @cal:6 Process all discovered files into intermediate records
+    _m_intermediate=$(
+        printf '%s\n' "$_m_files" | while IFS="" read -r _m_fp; do
+            case "$_m_fp" in */"$_m_out_base") continue ;; esac
+            process_file "$_m_fp"
+        done
+    )
+
+    # @ass Verify extraction produced results
+    if [ -z "$_m_intermediate" ]; then
+        # @rai:3 Handle extraction failure
+        # with empty output and stderr warning
+        printf '# Autodocs\n\nNo tagged documentation found.\n' > "$OUTPUT"
+        printf 'autodocs: tags found but no extractable docs under %s\n' "$SCAN_DIR" >&2
+        return 0
+    fi
+
+    # @cal:2 Render documentation and write output file
+    render_markdown "$_m_intermediate" > "$OUTPUT"
+    printf 'autodocs: wrote %s\n' "$OUTPUT" >&2
+}
+
+# @cal:1 Entry point
+main
