@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
 
--- @set:9 Localize standard library functions
+-- @set:9 Localize `string.*`, `table.*`, and `io.*` functions
 -- bypasses metatable and global lookups in the hot loop
 local find   = string.find
 local sub    = string.sub
@@ -12,14 +12,14 @@ local fmt    = string.format
 local concat = table.concat
 local open   = io.open
 
--- @cal:3 Shell-escape a string for safe interpolation into io.popen
--- prevents breakage from paths containing ", $(), or backticks
+-- @cal:3 Shell-escape a string for safe interpolation into `io.popen`
+-- [!NOTE] prevents breakage from paths containing `"`, `$()`, or backticks
 local function shell_quote(s)
     return "'" .. gsub(s, "'", "'\\''") .. "'"
 end
 
 -- @set:8 Parse CLI args with defaults
--- strip trailing slash, resolve absolute path via io.popen
+-- strip trailing slash, resolve absolute path via `io.popen`
 -- `US` separates multi-line text within record fields
 local TITLE    = "Autodocs"
 local SCAN_DIR = arg[1] or "."
@@ -48,7 +48,7 @@ local function trim_trail(s)
     return sub(s, 1, i)
 end
 
--- @cal:3 Trim both ends via trim_lead and trim_trail
+-- @cal:3 Trim both ends via `trim_lead` and `trim_trail`
 local function trim(s)
     return trim_trail(trim_lead(s))
 end
@@ -61,7 +61,7 @@ local function has_tag(line)
            find(line, "@cal", 1, true) or find(line, "@rai", 1, true)
 end
 
--- @ass:7 Classify a tagged line into SET, ASS, CAL, or RAI
+-- @ass:7 Classify a tagged line into `SET`, `ASS`, `CAL`, or `RAI`
 local function get_tag(line)
     if     find(line, "@set", 1, true) then return "SET"
     elseif find(line, "@ass", 1, true) then return "ASS"
@@ -90,7 +90,7 @@ local function strip_tag_num(text, tag)
     return prefix .. rest
 end
 
--- @set:1 Hoisted tag table avoids per-call allocation in strip_tags
+-- @set:1 Hoisted `TAGS` table avoids per-call allocation in `strip_tags`
 local TAGS = {"@set", "@ass", "@cal", "@rai"}
 
 -- @cal:16 Remove `@tag` or `@tag:N` syntax from comment text
@@ -202,7 +202,7 @@ local function strip_comment(line, style)
     return line
 end
 
--- @ass Map file extension to fenced code block language
+-- @ass Map file extension to fenced code block language via `ext_map`
 -- falling back to shebang detection for extensionless files
 local ext_map = {
     sh="sh", bash="sh", py="python",
@@ -222,7 +222,7 @@ local shebang_map = {
     {"perl", "perl"}, {"lua", "lua"}, {"php", "php"}, {"sh", "sh"},
 }
 
--- accepts first_line from caller to avoid reopening the file
+-- accepts `first_line` from caller to avoid reopening the file
 local function get_lang(filepath, first_line)
     local ext = match(filepath, "%.([^%.]+)$")
     if ext and ext_map[ext] then return ext_map[ext] end
@@ -241,10 +241,10 @@ local records = {}
 local total_input = 0
 
 -- @cal Walk one file as a line-by-line state machine
--- extracting tagged comments into records table
+-- extracting tagged comments into `records` table
 local function process_file(filepath)
-    -- @set:4 Bulk-read file first so get_lang reuses the buffer
-    -- avoids a second open+read just for shebang detection
+    -- @set:4 Bulk-read file first so `get_lang` reuses the buffer
+    -- [!NOTE] avoids a second `open`+`read` just for shebang detection
     local f = open(filepath, "r")
     if not f then return end
     local content = f:read("*a")
@@ -267,7 +267,7 @@ local function process_file(filepath)
     local pending = nil
 
     -- @cal:30 Emit a documentation record or defer for subject capture
-    -- lang is passed through as-is, empty string means no fence label
+    -- [!NOTE] `lang` is passed through as-is, empty string means no fence label
     local function emit()
         if tag ~= "" and text ~= "" then
             local tr = trim(text)
@@ -299,7 +299,7 @@ local function process_file(filepath)
         nsubj = 0
     end
 
-    -- @cal:9 Flush deferred record with captured subject lines
+    -- @cal:9 Flush deferred record with captured `subj` lines
     local function flush_pending()
         if pending then
             pending.subj = subj
@@ -499,7 +499,7 @@ local function process_file(filepath)
     total_input = total_input + ln
 end
 
--- @cal:52 Render intermediate records into grouped markdown
+-- @cal:52 Render `records` into grouped markdown
 -- with blockquotes for text and fenced code blocks for subjects
 local function render_markdown()
     local out = {}
@@ -557,7 +557,7 @@ end
 -- @cal Entry point
 local function main()
     -- @cal:17 Discover files containing documentation tags
-    -- respect .gitignore patterns via grep --exclude-from
+    -- respect `.gitignore` patterns via `grep --exclude-from`
     local gi = ""
     local gf = open(SCAN_DIR .. "/.gitignore", "r")
     if gf then
@@ -579,7 +579,7 @@ local function main()
     -- @ass Verify tagged files were discovered
     if #files == 0 then
         -- @rai:3 Handle missing tagged files
-        -- with empty output and stderr warning
+        -- with empty output and `stderr` warning
         local f = open(OUTPUT, "w")
         f:write(fmt("# %s\n\nNo tagged documentation found.\n", TITLE))
         f:close()
@@ -590,7 +590,7 @@ local function main()
     local out_base = match(OUTPUT, "([^/]+)$")
     local out_base_escaped = gsub(out_base, "(%W)", "%%%1")
 
-    -- @cal:5 Process all discovered files into intermediate records
+    -- @cal:5 Process all discovered files into intermediate `records`
     for _, fp in ipairs(files) do
         if not match(fp, "/" .. out_base_escaped .. "$") then
             process_file(fp)
@@ -600,7 +600,7 @@ local function main()
     -- @ass Verify extraction produced results
     if #records == 0 then
         -- @rai:3 Handle extraction failure
-        -- with empty output and stderr warning
+        -- with empty output and `stderr` warning
         local f = open(OUTPUT, "w")
         f:write(fmt("# %s\n\nNo tagged documentation found.\n", TITLE))
         f:close()
@@ -609,7 +609,7 @@ local function main()
     end
 
     -- @cal:7 Render documentation, write output, and report ratio
-    -- wraps across two lines so count must include the continuation
+    -- [!NOTE] wraps across two lines so `:N` count must include the continuation
     local markdown = render_markdown()
     local f = open(OUTPUT, "w")
     f:write(markdown)
