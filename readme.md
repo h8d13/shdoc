@@ -3,11 +3,11 @@
 ## Setters (@set)
 
 ### `/home/hadean/Desktop/Bin/autodocs:4`
-> Parse CLI args with defaults (. and readme.md)
+> Parse CLI args with defaults
 
 > strip trailing slash, resolve absolute path via cd
 
-> TAB delimits record fields, US separates multi-line text
+> `TAB` delimits record fields, `US` separates multi-line text
 
 ```sh
 SCAN_DIR="${1:-.}"
@@ -174,7 +174,7 @@ get_subject_count() {
 ```
 
 ### `/home/hadean/Desktop/Bin/autodocs:84`
-> Strip @tag:N and trailing digits from text
+> Strip `@tag:N` and trailing digits from text
 
 > rejoining prefix with remaining content
 

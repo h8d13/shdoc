@@ -81,7 +81,7 @@ get_subject_count() {
     [ -z "$_gsc" ] && _gsc=0 || :
 }
 
-# @cal:6 Strip @tag:N and trailing digits from text
+# @cal:6 Strip `@tag:N` and trailing digits from text
 # rejoining prefix with remaining content
 _strip_tag_num() {
     _st="${1%%"$2":*}"
