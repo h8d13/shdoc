@@ -6,7 +6,7 @@
 > [!IMPORTANT]
 > Defines a setter with 1 line of subject
 
-And a note callout
+And a important callout
 
 ```lua
 print('luadoc is awesomne')

@@ -7,7 +7,7 @@
 
 -- @set:1!i
 -- Defines a setter with 1 line of subject
--- And a note callout
+-- And a important callout 
 print('luadoc is awesomne')
 
 -- @set:9 Localize `string.*`, `table.*`, and `io.*` functions
