@@ -5,10 +5,18 @@
 --Examples--
 --########--
 
--- @set:1!i
+-- @set:9!i
 -- Defines a setter with 1 line of subject
 -- And a important callout 
 print('luadoc is awesomne')
+    -- Setter
+        --> Gives instructions to
+    -- Assert
+        --> Early checks
+    -- Caller
+        --> Use the final output
+    -- Raiser
+        --> Use errors of
 
 -- @set:9 Localize `string.*`, `table.*`, and `io.*` functions
 -- bypasses metatable and global lookups in the hot loop
@@ -613,6 +621,21 @@ end
 
 -- @cal Main function
 local function main()
+    -- @ass Early exit if output is newer than all source files
+    local nf = open(OUTPUT, "r")
+    if nf then
+        nf:close()
+        local np = io.popen(fmt(
+            'find %s -newer %s -not -path "*/.git/*" -type f 2>/dev/null | head -1',
+            shell_quote(SCAN_DIR), shell_quote(OUTPUT)))
+        local hit = np:read("*l")
+        np:close()
+        if not hit or hit == "" then
+            io.stderr:write(fmt("autodocs: %s up to date\n", OUTPUT))
+            return
+        end
+    end
+
     -- @cal:17 Discover files containing documentation tags
     -- respect `.gitignore` patterns via `grep --exclude-from`
     local gi = ""
@@ -665,9 +688,21 @@ local function main()
         return
     end
 
-    -- @cal:7!n Render documentation, write output, and report ratio
-    -- wraps across two lines so `:N` count must include the continuation
+    -- @ass:10 Render and compare against existing output
+    -- skip write if content is unchanged
     local markdown = render_markdown()
+    local ef = open(OUTPUT, "r")
+    if ef then
+        local existing = ef:read("*a")
+        ef:close()
+        if existing == markdown then
+            io.stderr:write(fmt("autodocs: %s unchanged\n", OUTPUT))
+            return
+        end
+    end
+
+    -- @cal:6!n Write output and report ratio
+    -- wraps across two lines so `:N` count must include the continuation
     local f = open(OUTPUT, "w")
     f:write(markdown)
     f:close()
