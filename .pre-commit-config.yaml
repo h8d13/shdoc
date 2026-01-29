@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: autodocs
         name: autodocs
-        entry: ./autodocs . readme.md
-        language: script
+        entry: lua autodocs.lua . readme.md
+        language: system
         pass_filenames: false
         always_run: true
