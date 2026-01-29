@@ -12,8 +12,7 @@ local fmt    = string.format
 local concat = table.concat
 local open   = io.open
 
--- @cal:3 Shell-escape a string for safe interpolation into `io.popen`
--- [!NOTE]
+-- @cal:3!n Shell-escape a string for safe interpolation into `io.popen`
 -- prevents breakage from paths containing `"`, `$()`, or backticks
 local function shell_quote(s)
     return "'" .. gsub(s, "'", "'\\''") .. "'"
@@ -86,7 +85,7 @@ local function strip_tag_num(text, tag)
     if not pos then return text end
     local prefix = sub(text, 1, pos - 1)
     local rest = sub(text, pos + #tag + 1)
-    rest = gsub(rest, "^%d+", "")
+    rest = gsub(rest, "^%d+!?%a?", "")
     rest = gsub(rest, "^ ", "", 1)
     return prefix .. rest
 end
@@ -94,12 +93,27 @@ end
 -- @set:1 Hoisted `TAGS` table avoids per-call allocation in `strip_tags`
 local TAGS = {"@set", "@ass", "@cal", "@rai"}
 
--- @cal:16 Remove `@tag` or `@tag:N` syntax from comment text
--- delegates to `strip_tag_num` for `:N` variants
+-- @set:1 Map `!x` suffixes to GitHub admonition types
+local ADMONITIONS = {n="NOTE", t="TIP", i="IMPORTANT", w="WARNING", c="CAUTION"}
+
+-- @cal:3 Extract `!x` admonition suffix from tag syntax
+local function get_admonition(text)
+    local code = match(text, "@%a+:?%d*!(%a)")
+    if code then return ADMONITIONS[code] end
+end
+
+-- @cal:22 Remove `@tag`, `@tag:N`, or `@tag!x` syntax from comment text
+-- delegates to `strip_tag_num` for `:N` and `:N!x` variants
 local function strip_tags(text)
     for _, tag in ipairs(TAGS) do
         if find(text, tag .. ":%d") then
             return strip_tag_num(text, tag)
+        end
+        local epos = find(text, tag .. "!%a")
+        if epos then
+            local rest = sub(text, epos + #tag + 2)
+            rest = gsub(rest, "^ ", "", 1)
+            return sub(text, 1, epos - 1) .. rest
         end
         local spos = find(text, tag .. " ", 1, true)
         if spos then
@@ -244,15 +258,14 @@ local total_input = 0
 -- @cal Walk one file as a line-by-line state machine
 -- extracting tagged comments into `records` table
 local function process_file(filepath)
-    -- @set:4 Bulk-read file first so `get_lang` reuses the buffer
-    -- [!NOTE]
+    -- @set:4!n Bulk-read file first so `get_lang` reuses the buffer
     -- avoids a second `open`+`read` just for shebang detection
     local f = open(filepath, "r")
     if not f then return end
     local content = f:read("*a")
     f:close()
 
-    -- @set:13 Initialize per-file state machine variables
+    -- @set:14 Initialize per-file state machine variables
     -- `get_lang` receives first line to avoid reopening the file
     local first   = match(content, "^([^\n]*)")
     local rel     = filepath
@@ -266,10 +279,10 @@ local function process_file(filepath)
     local cap_want = 0
     local capture = 0
     local subj    = ""
+    local adm     = nil
     local pending = nil
 
-    -- @cal:30 Emit a documentation record or defer for subject capture
-    -- [!NOTE]
+    -- @cal:33!n Emit a documentation record or defer for subject capture
     -- `lang` is passed through as-is, empty string means no fence label
     local function emit()
         if tag ~= "" and text ~= "" then
@@ -281,6 +294,7 @@ local function process_file(filepath)
                         loc  = rel .. ":" .. start,
                         text = tr,
                         lang = lang,
+                        adm  = adm,
                     }
                     cap_want = nsubj
                     subj = ""
@@ -291,6 +305,7 @@ local function process_file(filepath)
                         text = tr,
                         lang = lang,
                         subj = "",
+                        adm  = adm,
                     }
                 end
             end
@@ -300,6 +315,7 @@ local function process_file(filepath)
         start = ""
         text  = ""
         nsubj = 0
+        adm   = nil
     end
 
     -- @cal:9 Flush deferred record with captured `subj` lines
@@ -370,6 +386,7 @@ local function process_file(filepath)
                     start = tostring(ln)
                     local sc = strip_comment(line, "cblock_cont")
                     nsubj = get_subject_count(sc)
+                    adm   = get_admonition(sc)
                     text  = strip_tags(sc)
                     state = "cblock"
                 end
@@ -387,6 +404,7 @@ local function process_file(filepath)
                     start = tostring(ln)
                     local sc = strip_comment(line, "html_cont")
                     nsubj = get_subject_count(sc)
+                    adm   = get_admonition(sc)
                     text  = strip_tags(sc)
                     state = "html"
                 end
@@ -424,6 +442,7 @@ local function process_file(filepath)
                     start = tostring(ln)
                     local sc = strip_comment(line, "docstring_cont")
                     nsubj = get_subject_count(sc)
+                    adm   = get_admonition(sc)
                     text  = strip_tags(sc)
                     state = promote
                 end
@@ -455,6 +474,7 @@ local function process_file(filepath)
             start = tostring(ln)
             local sc = strip_comment(line, style)
             nsubj = get_subject_count(sc)
+            adm   = get_admonition(sc)
             text  = strip_tags(sc)
 
             if style == "hash" or style == "dslash" or style == "ddash" then
@@ -502,7 +522,7 @@ local function process_file(filepath)
     total_input = total_input + ln
 end
 
--- @cal:57 Render `records` into grouped markdown
+-- @cal:67 Render `records` into grouped markdown
 -- with blockquotes for text and fenced code blocks for subjects
 local function render_markdown()
     local out = {}
@@ -524,16 +544,25 @@ local function render_markdown()
         for _, r in ipairs(entries) do
             w(fmt("### `%s`\n", r.loc))
 
-            -- Render text lines: first as plain, rest as blockquote
-            local first_text = true
-            for tline in gmatch(r.text, "[^\031]+") do
-                local tr = trim(tline)
-                if tr ~= "" then
-                    if first_text then
-                        w(tr .. "\n\n")
-                        first_text = false
-                    else
-                        w(fmt("> %s\n\n", tr))
+            -- Render text lines: admonition or first-plain/rest-blockquote
+            if r.adm then
+                w(fmt("> [!%s]\n", r.adm))
+                for tline in gmatch(r.text, "[^\031]+") do
+                    local tr = trim(tline)
+                    if tr ~= "" then w(fmt("> %s\n", tr)) end
+                end
+                w("\n")
+            else
+                local first_text = true
+                for tline in gmatch(r.text, "[^\031]+") do
+                    local tr = trim(tline)
+                    if tr ~= "" then
+                        if first_text then
+                            w(tr .. "\n\n")
+                            first_text = false
+                        else
+                            w(fmt("> %s\n\n", tr))
+                        end
                     end
                 end
             end
@@ -617,8 +646,7 @@ local function main()
         return
     end
 
-    -- @cal:7 Render documentation, write output, and report ratio
-    -- [!NOTE]
+    -- @cal:7!n Render documentation, write output, and report ratio
     -- wraps across two lines so `:N` count must include the continuation
     local markdown = render_markdown()
     local f = open(OUTPUT, "w")
