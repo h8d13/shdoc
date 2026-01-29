@@ -309,9 +309,6 @@ process_file() {
             continue
         fi
 
-        detect_style "$_pf_line"
-        _pf_style="$_ds"
-
         if [ "$_pf_in" = "cblock" ]; then
             case "$_pf_line" in
                 *'*/'*)
@@ -425,6 +422,9 @@ process_file() {
             esac
             continue
         fi
+
+        detect_style "$_pf_line"
+        _pf_style="$_ds"
 
         if [ -n "$_pf_in" ]; then
             if [ "$_pf_style" = "$_pf_in" ]; then
@@ -562,8 +562,10 @@ render_markdown() {
 }
 
 main() {
-    # @cal:3 Discover files containing documentation tags
-    _m_files=$(grep -rl -I \
+    # @cal:5 Discover files containing documentation tags
+    # respect .gitignore patterns via --exclude-from when present
+    _m_gi=""; [ -f "$SCAN_DIR/.gitignore" ] && _m_gi="--exclude-from=$SCAN_DIR/.gitignore" || :
+    _m_files=$(grep -rl -I --exclude-dir=.git $_m_gi \
         -e '@set' -e '@ass' -e '@cal' -e '@rai' \
         "$SCAN_DIR" 2>/dev/null) || true
 

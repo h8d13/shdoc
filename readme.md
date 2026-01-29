@@ -95,11 +95,11 @@ detect_style() {
 > falling back to shebang detection for extensionless files
 
 
-### `/home/hadean/Desktop/Bin/autodocs:570`
+### `/home/hadean/Desktop/Bin/autodocs:572`
 > Verify tagged files were discovered
 
 
-### `/home/hadean/Desktop/Bin/autodocs:589`
+### `/home/hadean/Desktop/Bin/autodocs:591`
 > Verify extraction produced results
 
 
@@ -315,13 +315,16 @@ render_markdown() {
 ### `/home/hadean/Desktop/Bin/autodocs:565`
 > Discover files containing documentation tags
 
+> respect .gitignore patterns via --exclude-from when present
+
 ```sh
-    _m_files=$(grep -rl -I \
+    _m_gi=""; [ -f "$SCAN_DIR/.gitignore" ] && _m_gi="--exclude-from=$SCAN_DIR/.gitignore" || :
+    _m_files=$(grep -rl -I --exclude-dir=.git $_m_gi \
         -e '@set' -e '@ass' -e '@cal' -e '@rai' \
         "$SCAN_DIR" 2>/dev/null) || true
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:581`
+### `/home/hadean/Desktop/Bin/autodocs:583`
 > Process all discovered files into intermediate records
 
 ```sh
@@ -333,7 +336,7 @@ render_markdown() {
     )
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:598`
+### `/home/hadean/Desktop/Bin/autodocs:600`
 > Render documentation and write output file
 
 ```sh
@@ -341,7 +344,7 @@ render_markdown() {
     printf 'autodocs: wrote %s\n' "$OUTPUT" >&2
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:603`
+### `/home/hadean/Desktop/Bin/autodocs:605`
 > Entry point
 
 ```sh
@@ -350,7 +353,7 @@ main
 
 ## Raisers (@rai)
 
-### `/home/hadean/Desktop/Bin/autodocs:572`
+### `/home/hadean/Desktop/Bin/autodocs:574`
 > Handle missing tagged files
 
 > with empty output and stderr warning
@@ -361,7 +364,7 @@ main
         return 0
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:591`
+### `/home/hadean/Desktop/Bin/autodocs:593`
 > Handle extraction failure
 
 > with empty output and stderr warning
