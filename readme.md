@@ -18,7 +18,7 @@ TAB=$(printf '\t')
 US=$(printf '\037')
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:247`
+### `/home/hadean/Desktop/Bin/autodocs:248`
 > Initialize per-file state machine variables
 
 > `_get_lang` sets `_gl` via result-variable pattern
@@ -73,6 +73,8 @@ get_tag() {
 ### `/home/hadean/Desktop/Bin/autodocs:114`
 > Detect comment style from a source line
 
+> `none` skips early in next defs
+
 ```sh
 detect_style() {
     _trim_lead "$1"
@@ -89,17 +91,17 @@ detect_style() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:195`
+### `/home/hadean/Desktop/Bin/autodocs:196`
 > Map file extension to fenced code block language
 
 > falling back to shebang detection for extensionless files
 
 
-### `/home/hadean/Desktop/Bin/autodocs:572`
+### `/home/hadean/Desktop/Bin/autodocs:573`
 > Verify tagged files were discovered
 
 
-### `/home/hadean/Desktop/Bin/autodocs:591`
+### `/home/hadean/Desktop/Bin/autodocs:592`
 > Verify extraction produced results
 
 
@@ -212,19 +214,19 @@ strip_tags() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:129`
+### `/home/hadean/Desktop/Bin/autodocs:130`
 > Strip comment delimiters and extract inner text
 
 > for all styles including block continuations
 
 
-### `/home/hadean/Desktop/Bin/autodocs:244`
+### `/home/hadean/Desktop/Bin/autodocs:245`
 > Walk one file as a line-by-line state machine
 
 > extracting tagged comments into tab-delimited records
 
 
-### `/home/hadean/Desktop/Bin/autodocs:265`
+### `/home/hadean/Desktop/Bin/autodocs:266`
 > Emit a documentation record or defer for subject capture
 
 ```sh
@@ -251,7 +253,7 @@ strip_tags() {
     }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:288`
+### `/home/hadean/Desktop/Bin/autodocs:289`
 > Flush deferred record with captured subject lines
 
 ```sh
@@ -265,7 +267,7 @@ strip_tags() {
     }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:522`
+### `/home/hadean/Desktop/Bin/autodocs:523`
 > Render intermediate records into grouped markdown
 
 > with blockquotes for text and fenced code blocks for subjects
@@ -312,7 +314,7 @@ render_markdown() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:565`
+### `/home/hadean/Desktop/Bin/autodocs:566`
 > Discover files containing documentation tags
 
 > respect .gitignore patterns via --exclude-from when present
@@ -324,7 +326,7 @@ render_markdown() {
         "$SCAN_DIR" 2>/dev/null) || true
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:583`
+### `/home/hadean/Desktop/Bin/autodocs:584`
 > Process all discovered files into intermediate records
 
 ```sh
@@ -336,7 +338,7 @@ render_markdown() {
     )
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:600`
+### `/home/hadean/Desktop/Bin/autodocs:601`
 > Render documentation and write output file
 
 ```sh
@@ -344,7 +346,7 @@ render_markdown() {
     printf 'autodocs: wrote %s\n' "$OUTPUT" >&2
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:605`
+### `/home/hadean/Desktop/Bin/autodocs:606`
 > Entry point
 
 ```sh
@@ -353,7 +355,7 @@ main
 
 ## Raisers (@rai)
 
-### `/home/hadean/Desktop/Bin/autodocs:574`
+### `/home/hadean/Desktop/Bin/autodocs:575`
 > Handle missing tagged files
 
 > with empty output and stderr warning
@@ -364,7 +366,7 @@ main
         return 0
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:593`
+### `/home/hadean/Desktop/Bin/autodocs:594`
 > Handle extraction failure
 
 > with empty output and stderr warning

@@ -112,6 +112,7 @@ strip_tags() {
 }
 
 # @ass:13 Detect comment style from a source line
+# `none` skips early in next defs
 detect_style() {
     _trim_lead "$1"
     case "$_tl" in
