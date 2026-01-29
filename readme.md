@@ -3,9 +3,11 @@
 ## Setters (@set)
 
 ### `/home/hadean/Desktop/Bin/autodocs:4`
-> Configure scan directory and output path
+> Parse CLI args with defaults (. and readme.md)
 
-> from CLI arguments with field delimiters
+> strip trailing slash, resolve absolute path via cd
+
+> TAB delimits record fields, US separates multi-line text
 
 ```sh
 SCAN_DIR="${1:-.}"
@@ -16,7 +18,7 @@ TAB=$(printf '\t')
 US=$(printf '\037')
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:242`
+### `/home/hadean/Desktop/Bin/autodocs:247`
 > Initialize per-file state machine variables
 
 > `_get_lang` sets `_gl` via result-variable pattern
@@ -42,7 +44,7 @@ US=$(printf '\037')
 
 ## Asserts (@ass)
 
-### `/home/hadean/Desktop/Bin/autodocs:41`
+### `/home/hadean/Desktop/Bin/autodocs:45`
 > Test whether a line contains any documentation tag
 
 ```sh
@@ -54,7 +56,7 @@ has_tag() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:49`
+### `/home/hadean/Desktop/Bin/autodocs:53`
 > Classify a tagged line into SET, ASS, CAL, or RAI
 
 ```sh
@@ -68,10 +70,8 @@ get_tag() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:108`
+### `/home/hadean/Desktop/Bin/autodocs:114`
 > Detect comment style from a source line
-
-> supporting hash, dslash, cblock, html, dquote, squote, ddash
 
 ```sh
 detect_style() {
@@ -89,26 +89,68 @@ detect_style() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:190`
+### `/home/hadean/Desktop/Bin/autodocs:195`
 > Map file extension to fenced code block language
 
 > falling back to shebang detection for extensionless files
 
 
-### `/home/hadean/Desktop/Bin/autodocs:565`
+### `/home/hadean/Desktop/Bin/autodocs:570`
 > Verify tagged files were discovered
 
 
-### `/home/hadean/Desktop/Bin/autodocs:584`
+### `/home/hadean/Desktop/Bin/autodocs:589`
 > Verify extraction produced results
 
 
 ## Callers (@cal)
 
-### `/home/hadean/Desktop/Bin/autodocs:59`
-> Extract the subject line count from @tag:N syntax
+### `/home/hadean/Desktop/Bin/autodocs:14`
+> Strip leading whitespace from a string
 
-> parsing leading digits after the colon into _gsc
+```sh
+_trim_lead() {
+    _tl="$1"
+    while :; do
+        case "$_tl" in
+            ' '*)  _tl="${_tl# }" ;;
+            '	'*) _tl="${_tl#	}" ;;
+            *)     break ;;
+        esac
+    done
+}
+```
+
+### `/home/hadean/Desktop/Bin/autodocs:26`
+> Strip trailing whitespace from a string
+
+```sh
+_trim_trail() {
+    _tt="$1"
+    while :; do
+        case "$_tt" in
+            *' ')  _tt="${_tt% }" ;;
+            *'	') _tt="${_tt%	}" ;;
+            *)     break ;;
+        esac
+    done
+}
+```
+
+### `/home/hadean/Desktop/Bin/autodocs:38`
+> Trim both ends via _trim_lead and _trim_trail
+
+```sh
+_trim() {
+    _trim_lead "$1"
+    _trim_trail "$_tl"
+    _tr="$_tt"
+```
+
+### `/home/hadean/Desktop/Bin/autodocs:63`
+> Extract the subject line count from `@tag:N` syntax
+
+> parsing leading digits after the colon into `_gsc`
 
 ```sh
 get_subject_count() {
@@ -131,10 +173,24 @@ get_subject_count() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:88`
-> Remove @tag or @tag:N syntax from comment text
+### `/home/hadean/Desktop/Bin/autodocs:84`
+> Strip @tag:N and trailing digits from text
 
-> delegates to _strip_tag_num for :N variants
+> rejoining prefix with remaining content
+
+```sh
+_strip_tag_num() {
+    _st="${1%%"$2":*}"
+    _stn_rest="${1#*"$2":}"
+    while :; do case "$_stn_rest" in [0-9]*) _stn_rest="${_stn_rest#?}" ;; *) break ;; esac; done
+    case "$_stn_rest" in ' '*) _stn_rest="${_stn_rest# }" ;; esac
+    _st="${_st}${_stn_rest}"
+```
+
+### `/home/hadean/Desktop/Bin/autodocs:94`
+> Remove `@tag` or `@tag:N` syntax from comment text
+
+> delegates to `_strip_tag_num` for `:N` variants
 
 ```sh
 strip_tags() {
@@ -156,19 +212,19 @@ strip_tags() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:124`
+### `/home/hadean/Desktop/Bin/autodocs:129`
 > Strip comment delimiters and extract inner text
 
 > for all styles including block continuations
 
 
-### `/home/hadean/Desktop/Bin/autodocs:239`
+### `/home/hadean/Desktop/Bin/autodocs:244`
 > Walk one file as a line-by-line state machine
 
 > extracting tagged comments into tab-delimited records
 
 
-### `/home/hadean/Desktop/Bin/autodocs:260`
+### `/home/hadean/Desktop/Bin/autodocs:265`
 > Emit a documentation record or defer for subject capture
 
 ```sh
@@ -195,7 +251,7 @@ strip_tags() {
     }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:283`
+### `/home/hadean/Desktop/Bin/autodocs:288`
 > Flush deferred record with captured subject lines
 
 ```sh
@@ -209,7 +265,7 @@ strip_tags() {
     }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:517`
+### `/home/hadean/Desktop/Bin/autodocs:522`
 > Render intermediate records into grouped markdown
 
 > with blockquotes for text and fenced code blocks for subjects
@@ -256,7 +312,7 @@ render_markdown() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:560`
+### `/home/hadean/Desktop/Bin/autodocs:565`
 > Discover files containing documentation tags
 
 ```sh
@@ -265,7 +321,7 @@ render_markdown() {
         "$SCAN_DIR" 2>/dev/null) || true
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:576`
+### `/home/hadean/Desktop/Bin/autodocs:581`
 > Process all discovered files into intermediate records
 
 ```sh
@@ -277,7 +333,7 @@ render_markdown() {
     )
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:593`
+### `/home/hadean/Desktop/Bin/autodocs:598`
 > Render documentation and write output file
 
 ```sh
@@ -285,7 +341,7 @@ render_markdown() {
     printf 'autodocs: wrote %s\n' "$OUTPUT" >&2
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:598`
+### `/home/hadean/Desktop/Bin/autodocs:603`
 > Entry point
 
 ```sh
@@ -294,7 +350,7 @@ main
 
 ## Raisers (@rai)
 
-### `/home/hadean/Desktop/Bin/autodocs:567`
+### `/home/hadean/Desktop/Bin/autodocs:572`
 > Handle missing tagged files
 
 > with empty output and stderr warning
@@ -305,7 +361,7 @@ main
         return 0
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:586`
+### `/home/hadean/Desktop/Bin/autodocs:591`
 > Handle extraction failure
 
 > with empty output and stderr warning
