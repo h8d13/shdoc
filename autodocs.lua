@@ -502,7 +502,7 @@ local function process_file(filepath)
     total_input = total_input + ln
 end
 
--- @cal:52 Render `records` into grouped markdown
+-- @cal:57 Render `records` into grouped markdown
 -- with blockquotes for text and fenced code blocks for subjects
 local function render_markdown()
     local out = {}
@@ -524,11 +524,17 @@ local function render_markdown()
         for _, r in ipairs(entries) do
             w(fmt("### `%s`\n", r.loc))
 
-            -- Render text lines (split on US, skip empty after trim)
+            -- Render text lines: first as plain, rest as blockquote
+            local first_text = true
             for tline in gmatch(r.text, "[^\031]+") do
                 local tr = trim(tline)
                 if tr ~= "" then
-                    w(fmt("> %s\n\n", tr))
+                    if first_text then
+                        w(tr .. "\n\n")
+                        first_text = false
+                    else
+                        w(fmt("> %s\n\n", tr))
+                    end
                 end
             end
 
