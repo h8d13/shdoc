@@ -1,9 +1,9 @@
 #!/bin/sh
 set -e
 
-# @set:6 Parse CLI args with defaults (. and readme.md)
+# @set:6 Parse CLI args with defaults
 # strip trailing slash, resolve absolute path via cd
-# TAB delimits record fields, US separates multi-line text
+# `TAB` delimits record fields, `US` separates multi-line text
 SCAN_DIR="${1:-.}"
 OUTPUT="${2:-readme.md}"
 SCAN_DIR="${SCAN_DIR%/}"
