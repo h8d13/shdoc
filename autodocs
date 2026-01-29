@@ -240,8 +240,8 @@ _get_lang() {
 # extracting tagged comments into tab-delimited records
 process_file() {
     # @set:14 Initialize per-file state machine variables
-    # _get_lang sets _gl via result-variable pattern
-    # avoiding $() subshell fork, read back as _pf_lang
+    # `_get_lang` sets `_gl` via result-variable pattern
+    # avoiding `$()` subshell fork, read back as `_pf_lang`
     _pf_path="$1"
     _pf_rel="$_pf_path"
     _get_lang "$_pf_path"

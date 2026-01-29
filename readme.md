@@ -19,9 +19,9 @@ US=$(printf '\037')
 ### `/home/hadean/Desktop/Bin/autodocs:242`
 > Initialize per-file state machine variables
 
-> _get_lang sets _gl via result-variable pattern
+> `_get_lang` sets `_gl` via result-variable pattern
 
-> avoiding $() subshell fork, read back as _pf_lang
+> avoiding `$()` subshell fork, read back as `_pf_lang`
 
 ```sh
     _pf_path="$1"
