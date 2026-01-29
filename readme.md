@@ -1,6 +1,6 @@
 # Autodocs
 
-## Asserts (@ass)
+## Checks (@chk)
 
 ### `/home/hadean/Desktop/Bin/autodocs.lua:80`
 Test whether a line contains any documentation tag
@@ -10,8 +10,8 @@ Test whether a line contains any documentation tag
 ```lua
 local function has_tag(line)
     if not find(line, "@", 1, true) then return nil end
-    return find(line, "@set", 1, true) or find(line, "@ass", 1, true) or
-           find(line, "@cal", 1, true) or find(line, "@rai", 1, true)
+    return find(line, "@def", 1, true) or find(line, "@chk", 1, true) or
+           find(line, "@run", 1, true) or find(line, "@err", 1, true)
 end
 ```
 
@@ -20,10 +20,10 @@ Classify a tagged line into `SET`, `ASS`, `CAL`, or `RAI`
 
 ```lua
 local function get_tag(line)
-    if     find(line, "@set", 1, true) then return "SET"
-    elseif find(line, "@ass", 1, true) then return "ASS"
-    elseif find(line, "@cal", 1, true) then return "CAL"
-    elseif find(line, "@rai", 1, true) then return "RAI"
+    if     find(line, "@def", 1, true) then return "DEF"
+    elseif find(line, "@chk", 1, true) then return "CHK"
+    elseif find(line, "@run", 1, true) then return "RUN"
+    elseif find(line, "@err", 1, true) then return "ERR"
     end
 end
 ```
@@ -35,8 +35,8 @@ Extract the subject line count from `@tag:N` syntax
 
 ```lua
 local function get_subject_count(text)
-    local n = match(text, "@set:(%d+)") or match(text, "@ass:(%d+)") or
-              match(text, "@cal:(%d+)") or match(text, "@rai:(%d+)")
+    local n = match(text, "@def:(%d+)") or match(text, "@chk:(%d+)") or
+              match(text, "@run:(%d+)") or match(text, "@err:(%d+)")
     return tonumber(n) or 0
 end
 ```
@@ -126,7 +126,7 @@ Render and compare against existing output
     end
 ```
 
-## Setters (@set)
+## Defines (@def)
 
 ### `/home/hadean/Desktop/Bin/autodocs.lua:8`
 > [!IMPORTANT]
@@ -136,14 +136,14 @@ And a important callout
 
 ```lua
 print('luadoc is awesome')
-    -- Assert  -> Early checks
+    -- Check  -> Early checks
     ---- guard the entry, bail early if preconditions fail
-    -- Setter  -> Gives instructions to
+    -- Define -> Gives instructions to
     ---- define the state/config the rest depends on
-    -- Caller  -> Use the instructions
+    -- Run    -> Use the instructions
     ---- do the actual work using those definitions
-    -- Raiser  -> Use errors of
-    ---- handle what went wrong with more definitions
+    -- Error  -> Handle what went wrong
+    ---- handle errors with more definitions
 ```
 
 ### `/home/hadean/Desktop/Bin/autodocs.lua:24`
@@ -200,7 +200,7 @@ local US = "\031"
 Hoisted `TAGS` table avoids per-call allocation in `strip_tags`
 
 ```lua
-local TAGS = {"@set", "@ass", "@cal", "@rai"}
+local TAGS = {"@def", "@chk", "@run", "@err"}
 ```
 
 ### `/home/hadean/Desktop/Bin/autodocs.lua:120`
@@ -281,7 +281,7 @@ Initialize per-file state machine variables
     local pending = nil
 ```
 
-## Callers (@cal)
+## Runners (@run)
 
 ### `/home/hadean/Desktop/Bin/autodocs.lua:57`
 Strip leading spaces and tabs via byte scan
@@ -508,10 +508,10 @@ local function render_markdown()
         end
     end
 
-    render_section("ASS", "Asserts", "@ass")
-    render_section("SET", "Setters", "@set")
-    render_section("CAL", "Callers", "@cal")
-    render_section("RAI", "Raisers", "@rai")
+    render_section("CHK", "Checks", "@chk")
+    render_section("DEF", "Defines", "@def")
+    render_section("RUN", "Runners", "@run")
+    render_section("ERR", "Errors", "@err")
 
     return concat(out)
 end
@@ -535,7 +535,7 @@ Discover files containing documentation tags
     end
 
     local cmd = fmt(
-        'grep -rl -I --exclude-dir=.git %s -e "@set" -e "@ass" -e "@cal" -e "@rai" %s 2>/dev/null',
+        'grep -rl -I --exclude-dir=.git %s -e "@def" -e "@chk" -e "@run" -e "@err" %s 2>/dev/null',
         gi, shell_quote(SCAN_DIR)
     )
     local pipe = io.popen(cmd)
@@ -589,7 +589,7 @@ Entry point
 main()
 ```
 
-## Raisers (@rai)
+## Errors (@err)
 
 ### `/home/hadean/Desktop/Bin/autodocs.lua:650`
 Handle missing tagged files

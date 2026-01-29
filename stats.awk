@@ -30,7 +30,7 @@ END {
     printf "  code blocks  %d (%d lines)\n", nb, nc
     printf "  admonitions  %d\n", na
     printf "\n"
-    split("Asserts (@ass),Setters (@set),Callers (@cal),Raisers (@rai)", order, ",")
+    split("Checks (@chk),Defines (@def),Runners (@run),Errors (@err)", order, ",")
     for (i = 1; i <= 4; i++)
         if (se[order[i]])
             printf "    %-24s %3d\n", order[i], se[order[i]]

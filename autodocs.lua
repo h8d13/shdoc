@@ -5,23 +5,23 @@
 --Examples--
 --########--
 
--- @set:9!i
+-- @def:9!i
 -- Defines a setter with 1 line of subject
 -- And a important callout 
 print('luadoc is awesome')
-    -- Assert  -> Early checks
+    -- Check  -> Early checks
     ---- guard the entry, bail early if preconditions fail
-    -- Setter  -> Gives instructions to
+    -- Define -> Gives instructions to
     ---- define the state/config the rest depends on
-    -- Caller  -> Use the instructions
+    -- Run    -> Use the instructions
     ---- do the actual work using those definitions
-    -- Raiser  -> Use errors of
-    ---- handle what went wrong with more definitions
+    -- Error  -> Handle what went wrong
+    ---- handle errors with more definitions
 
 --########--
 -- IMPLEMTENTATION
 
--- @set:9 Localize `string.*`, `table.*`, and `io.*` functions
+-- @def:9 Localize `string.*`, `table.*`, and `io.*` functions
 -- bypasses metatable and global lookups in the hot loop
 local find   = string.find
 local sub    = string.sub
@@ -33,13 +33,13 @@ local fmt    = string.format
 local concat = table.concat
 local open   = io.open
 
--- @set:3!n Shell-escape a string for safe interpolation into `io.popen`
+-- @def:3!n Shell-escape a string for safe interpolation into `io.popen`
 -- prevents breakage from paths containing `"`, `$()`, or backticks
 local function shell_quote(s)
     return "'" .. gsub(s, "'", "'\\''") .. "'"
 end
 
--- @set:11 Parse CLI args with defaults
+-- @def:11 Parse CLI args with defaults
 -- strip trailing slash, resolve absolute path via `/proc/self/environ`
 -- `US` separates multi-line text within record fields
 local TITLE    = "Autodocs"
@@ -54,7 +54,7 @@ if sub(SCAN_DIR, 1, 1) ~= "/" then
 end
 local US = "\031"
 
--- @cal:6 Strip leading spaces and tabs via byte scan
+-- @run:6 Strip leading spaces and tabs via byte scan
 -- returns original string when no trimming needed
 local function trim_lead(s)
     local i = 1
@@ -63,7 +63,7 @@ local function trim_lead(s)
     return sub(s, i)
 end
 
--- @cal:6 Strip trailing spaces and tabs via byte scan
+-- @run:6 Strip trailing spaces and tabs via byte scan
 -- returns original string when no trimming needed
 local function trim_trail(s)
     local i = #s
@@ -72,37 +72,37 @@ local function trim_trail(s)
     return sub(s, 1, i)
 end
 
--- @cal:3 Trim both ends via `trim_lead` and `trim_trail`
+-- @run:3 Trim both ends via `trim_lead` and `trim_trail`
 local function trim(s)
     return trim_trail(trim_lead(s))
 end
 
--- @ass:5 Test whether a line contains any documentation tag
+-- @chk:5 Test whether a line contains any documentation tag
 -- early `@` check short-circuits lines with no tags
 local function has_tag(line)
     if not find(line, "@", 1, true) then return nil end
-    return find(line, "@set", 1, true) or find(line, "@ass", 1, true) or
-           find(line, "@cal", 1, true) or find(line, "@rai", 1, true)
+    return find(line, "@def", 1, true) or find(line, "@chk", 1, true) or
+           find(line, "@run", 1, true) or find(line, "@err", 1, true)
 end
 
--- @ass:7 Classify a tagged line into `SET`, `ASS`, `CAL`, or `RAI`
+-- @chk:7 Classify a tagged line into `SET`, `ASS`, `CAL`, or `RAI`
 local function get_tag(line)
-    if     find(line, "@set", 1, true) then return "SET"
-    elseif find(line, "@ass", 1, true) then return "ASS"
-    elseif find(line, "@cal", 1, true) then return "CAL"
-    elseif find(line, "@rai", 1, true) then return "RAI"
+    if     find(line, "@def", 1, true) then return "DEF"
+    elseif find(line, "@chk", 1, true) then return "CHK"
+    elseif find(line, "@run", 1, true) then return "RUN"
+    elseif find(line, "@err", 1, true) then return "ERR"
     end
 end
 
--- @ass:5 Extract the subject line count from `@tag:N` syntax
+-- @chk:5 Extract the subject line count from `@tag:N` syntax
 -- using pattern capture after the colon
 local function get_subject_count(text)
-    local n = match(text, "@set:(%d+)") or match(text, "@ass:(%d+)") or
-              match(text, "@cal:(%d+)") or match(text, "@rai:(%d+)")
+    local n = match(text, "@def:(%d+)") or match(text, "@chk:(%d+)") or
+              match(text, "@run:(%d+)") or match(text, "@err:(%d+)")
     return tonumber(n) or 0
 end
 
--- @cal:9 Strip `@tag:N` and trailing digits from text
+-- @run:9 Strip `@tag:N` and trailing digits from text
 -- rejoining prefix with remaining content
 local function strip_tag_num(text, tag)
     local pos = find(text, tag .. ":", 1, true)
@@ -114,19 +114,19 @@ local function strip_tag_num(text, tag)
     return prefix .. rest
 end
 
--- @set:1 Hoisted `TAGS` table avoids per-call allocation in `strip_tags`
-local TAGS = {"@set", "@ass", "@cal", "@rai"}
+-- @def:1 Hoisted `TAGS` table avoids per-call allocation in `strip_tags`
+local TAGS = {"@def", "@chk", "@run", "@err"}
 
--- @set:1 Map `!x` suffixes to admonition types
+-- @def:1 Map `!x` suffixes to admonition types
 local ADMONITIONS = {n="NOTE", t="TIP", i="IMPORTANT", w="WARNING", c="CAUTION"}
 
--- @ass:4 Extract `!x` admonition suffix from tag syntax
+-- @chk:4 Extract `!x` admonition suffix from tag syntax
 local function get_admonition(text)
     local code = match(text, "@%a+:?%d*!(%a)")
     if code then return ADMONITIONS[code] end
 end
 
--- @cal:22 Remove `@tag`, `@tag:N`, or `@tag!x` syntax from comment text
+-- @run:22 Remove `@tag`, `@tag:N`, or `@tag!x` syntax from comment text
 -- delegates to `strip_tag_num` for `:N` and `:N!x` variants
 local function strip_tags(text)
     for _, tag in ipairs(TAGS) do
@@ -151,7 +151,7 @@ local function strip_tags(text)
     return text
 end
 
--- @ass:21 Detect comment style via byte-level prefix check
+-- @chk:21 Detect comment style via byte-level prefix check
 -- skips leading whitespace without allocating a trimmed copy
 local function detect_style(line)
     local i = 1
@@ -175,7 +175,7 @@ local function detect_style(line)
     return "none"
 end
 
--- @cal Strip comment delimiters and extract inner text
+-- @run Strip comment delimiters and extract inner text
 -- for all styles including block continuations
 local function strip_comment(line, style)
     if style == "hash" then
@@ -241,7 +241,7 @@ local function strip_comment(line, style)
     return line
 end
 
--- @set:12 Map file extension to fenced code block language
+-- @def:12 Map file extension to fenced code block language
 local ext_map = {
     sh="sh", bash="sh", py="python",
     js="javascript", mjs="javascript", cjs="javascript",
@@ -255,13 +255,13 @@ local ext_map = {
     hs="haskell", ex="elixir", exs="elixir", erl="erlang",
 }
 
--- @set:4 Map shebang interpreters to fenced code block language
+-- @def:4 Map shebang interpreters to fenced code block language
 local shebang_map = {
     {"python", "python"}, {"node", "javascript"}, {"ruby", "ruby"},
     {"perl", "perl"}, {"lua", "lua"}, {"php", "php"}, {"sh", "sh"},
 }
 
--- @ass:12 Classify file language via extension or shebang
+-- @chk:12 Classify file language via extension or shebang
 -- accepts `first_line` to avoid reopening the file
 local function get_lang(filepath, first_line)
     local ext = match(filepath, "%.([^%.]+)$")
@@ -276,21 +276,21 @@ local function get_lang(filepath, first_line)
     return ""
 end
 
--- @set:2 Global state for collected records and line count
+-- @def:2 Global state for collected records and line count
 local records = {}
 local total_input = 0
 
--- @cal Walk one file as a line-by-line state machine
+-- @run Walk one file as a line-by-line state machine
 -- extracting tagged comments into `records` table
 local function process_file(filepath)
-    -- @set:4!n Bulk-read file first so `get_lang` reuses the buffer
+    -- @def:4!n Bulk-read file first so `get_lang` reuses the buffer
     -- avoids a second `open`+`read` just for shebang detection
     local f = open(filepath, "r")
     if not f then return end
     local content = f:read("*a")
     f:close()
 
-    -- @set:14 Initialize per-file state machine variables
+    -- @def:14 Initialize per-file state machine variables
     -- `get_lang` receives first line to avoid reopening the file
     local first   = match(content, "^([^\n]*)")
     local rel     = filepath
@@ -307,7 +307,7 @@ local function process_file(filepath)
     local adm     = nil
     local pending = nil
 
-    -- @cal:33!n Emit a documentation record or defer for subject capture
+    -- @run:33!n Emit a documentation record or defer for subject capture
     -- `lang` is passed through as-is, empty string means no fence label
     local function emit()
         if tag ~= "" and text ~= "" then
@@ -343,7 +343,7 @@ local function process_file(filepath)
         adm   = nil
     end
 
-    -- @cal:9 Flush deferred record with captured `subj` lines
+    -- @run:9 Flush deferred record with captured `subj` lines
     local function flush_pending()
         if pending then
             pending.subj = subj
@@ -547,7 +547,7 @@ local function process_file(filepath)
     total_input = total_input + ln
 end
 
--- @cal:73 Render `records` into grouped markdown
+-- @run:73 Render `records` into grouped markdown
 -- with blockquotes for text and fenced code blocks for subjects
 local function render_markdown()
     local out = {}
@@ -615,17 +615,17 @@ local function render_markdown()
         end
     end
 
-    render_section("ASS", "Asserts", "@ass")
-    render_section("SET", "Setters", "@set")
-    render_section("CAL", "Callers", "@cal")
-    render_section("RAI", "Raisers", "@rai")
+    render_section("CHK", "Checks", "@chk")
+    render_section("DEF", "Defines", "@def")
+    render_section("RUN", "Runners", "@run")
+    render_section("ERR", "Errors", "@err")
 
     return concat(out)
 end
 
--- @cal Main function
+-- @run Main function
 local function main()
-    -- @cal:17 Discover files containing documentation tags
+    -- @run:17 Discover files containing documentation tags
     -- respect `.gitignore` patterns via `grep --exclude-from`
     local gi = ""
     local gf = open(SCAN_DIR .. "/.gitignore", "r")
@@ -635,7 +635,7 @@ local function main()
     end
 
     local cmd = fmt(
-        'grep -rl -I --exclude-dir=.git %s -e "@set" -e "@ass" -e "@cal" -e "@rai" %s 2>/dev/null',
+        'grep -rl -I --exclude-dir=.git %s -e "@def" -e "@chk" -e "@run" -e "@err" %s 2>/dev/null',
         gi, shell_quote(SCAN_DIR)
     )
     local pipe = io.popen(cmd)
@@ -645,9 +645,9 @@ local function main()
     end
     pipe:close()
 
-    -- @ass Verify tagged files were discovered
+    -- @chk Verify tagged files were discovered
     if #files == 0 then
-        -- @rai:3 Handle missing tagged files
+        -- @err:3 Handle missing tagged files
         -- with empty output and `stderr` warning
         local f = open(OUTPUT, "w")
         f:write(fmt("# %s\n\nNo tagged documentation found.\n", TITLE))
@@ -659,16 +659,16 @@ local function main()
     local out_base = match(OUTPUT, "([^/]+)$")
     local out_base_escaped = gsub(out_base, "(%W)", "%%%1")
 
-    -- @cal:5 Process all discovered files into intermediate `records`
+    -- @run:5 Process all discovered files into intermediate `records`
     for _, fp in ipairs(files) do
         if not match(fp, "/" .. out_base_escaped .. "$") then
             process_file(fp)
         end
     end
 
-    -- @ass Verify extraction produced results
+    -- @chk Verify extraction produced results
     if #records == 0 then
-        -- @rai:3 Handle extraction failure
+        -- @err:3 Handle extraction failure
         -- with empty output and `stderr` warning
         local f = open(OUTPUT, "w")
         f:write(fmt("# %s\n\nNo tagged documentation found.\n", TITLE))
@@ -677,7 +677,7 @@ local function main()
         return
     end
 
-    -- @ass:10 Render and compare against existing output
+    -- @chk:10 Render and compare against existing output
     -- skip write if content is unchanged
     local markdown = render_markdown()
     local ef = open(OUTPUT, "r")
@@ -690,7 +690,7 @@ local function main()
         end
     end
 
-    -- @cal:6!n Write output and report ratio
+    -- @run:6!n Write output and report ratio
     -- wraps across two lines so `:N` count must include the continuation
     local f = open(OUTPUT, "w")
     f:write(markdown)
@@ -699,7 +699,7 @@ local function main()
     io.stderr:write(fmt("autodocs: wrote %s (%d/%d = %d%%)\n",
         OUTPUT, ol, total_input, total_input > 0 and math.floor(ol * 100 / total_input) or 0))
 
-    -- @cal:4 Run `stats.awk` on the output if available
+    -- @run:4 Run `stats.awk` on the output if available
     local script_dir = match(arg[0], "^(.*/)") or "./"
     local stats_awk = script_dir .. "stats.awk"
     local sf = open(stats_awk, "r")
@@ -709,6 +709,6 @@ local function main()
     end
 end
 
--- @cal:1 Entry point
+-- @run:1 Entry point
 main()
 
