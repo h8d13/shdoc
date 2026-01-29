@@ -1,5 +1,13 @@
 #!/usr/bin/env lua
 
+--########--
+--HLPARSER--
+--Examples
+-- @cal:1!n
+-- Defines a caller with 1 line of subject
+-- And a note callout
+print('luadoc is awesomne')
+
 -- @set:9 Localize `string.*`, `table.*`, and `io.*` functions
 -- bypasses metatable and global lookups in the hot loop
 local find   = string.find
@@ -592,7 +600,7 @@ local function render_markdown()
     return concat(out)
 end
 
--- @cal Entry point
+-- @cal Main function
 local function main()
     -- @cal:17 Discover files containing documentation tags
     -- respect `.gitignore` patterns via `grep --exclude-from`
