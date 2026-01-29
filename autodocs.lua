@@ -12,13 +12,19 @@ local fmt    = string.format
 local concat = table.concat
 local open   = io.open
 
--- @set:7 Parse CLI args with defaults
+-- @cal:3 Shell-escape a string for safe interpolation into io.popen
+local function shell_quote(s)
+    return "'" .. gsub(s, "'", "'\\''") .. "'"
+end
+
+-- @set:8 Parse CLI args with defaults
 -- strip trailing slash, resolve absolute path via io.popen
 -- `US` separates multi-line text within record fields
+local TITLE    = "Autodocs"
 local SCAN_DIR = arg[1] or "."
 local OUTPUT   = arg[2] or "readme.md"
 SCAN_DIR = gsub(SCAN_DIR, "/$", "")
-local p = io.popen('cd "' .. SCAN_DIR .. '" && pwd')
+local p = io.popen('cd ' .. shell_quote(SCAN_DIR) .. ' && pwd')
 SCAN_DIR = p:read("*l")
 p:close()
 local US = "\031"
@@ -215,18 +221,13 @@ local shebang_map = {
     {"perl", "perl"}, {"lua", "lua"}, {"php", "php"}, {"sh", "sh"},
 }
 
-local function get_lang(filepath)
+local function get_lang(filepath, first_line)
     local ext = match(filepath, "%.([^%.]+)$")
     if ext and ext_map[ext] then return ext_map[ext] end
-    local f = open(filepath, "r")
-    if f then
-        local first = f:read("*l")
-        f:close()
-        if first and sub(first, 1, 3) == "#!/" then
-            for _, pair in ipairs(shebang_map) do
-                if find(first, pair[1], 1, true) then
-                    return pair[2]
-                end
+    if first_line and sub(first_line, 1, 3) == "#!/" then
+        for _, pair in ipairs(shebang_map) do
+            if find(first_line, pair[1], 1, true) then
+                return pair[2]
             end
         end
     end
@@ -240,10 +241,18 @@ local total_input = 0
 -- @cal Walk one file as a line-by-line state machine
 -- extracting tagged comments into records table
 local function process_file(filepath)
-    -- @set:12 Initialize per-file state machine variables
-    -- `get_lang` returns language, `records` collects output in-memory
+    -- @set:4 Bulk-read file into memory for single-syscall I/O
+    -- first line is extracted for shebang detection without reopening
+    local f = open(filepath, "r")
+    if not f then return end
+    local content = f:read("*a")
+    f:close()
+
+    -- @set:13 Initialize per-file state machine variables
+    -- `get_lang` receives first line to avoid reopening the file
+    local first   = match(content, "^([^\n]*)")
     local rel     = filepath
-    local lang    = get_lang(filepath)
+    local lang    = get_lang(filepath, first)
     local ln      = 0
     local state   = ""
     local tag     = ""
@@ -255,19 +264,17 @@ local function process_file(filepath)
     local subj    = ""
     local pending = nil
 
-    -- @cal:32 Emit a documentation record or defer for subject capture
+    -- @cal:30 Emit a documentation record or defer for subject capture
     local function emit()
         if tag ~= "" and text ~= "" then
             local tr = trim(text)
             if tr ~= "" then
                 if nsubj > 0 then
-                    local lang_f = lang
-                    if lang_f == "" then lang_f = "-" end
                     pending = {
                         tag  = tag,
                         loc  = rel .. ":" .. start,
                         text = tr,
-                        lang = lang_f,
+                        lang = lang,
                     }
                     cap_want = nsubj
                     subj = ""
@@ -299,13 +306,6 @@ local function process_file(filepath)
             capture = 0
         end
     end
-
-    -- @set:4 Bulk-read file into memory for single-syscall I/O
-    -- then scan for newlines in the hot loop
-    local f = open(filepath, "r")
-    if not f then return end
-    local content = f:read("*a")
-    f:close()
 
     local pos = 1
     local clen = #content
@@ -502,7 +502,7 @@ local function render_markdown()
     local out = {}
     local function w(s) out[#out + 1] = s end
 
-    w("# Autodocs\n\n")
+    w(fmt("# %s\n\n", TITLE))
 
     local function render_section(prefix, title, label)
         local entries = {}
@@ -528,7 +528,7 @@ local function render_markdown()
 
             -- Render subject code block
             if r.subj and r.subj ~= "" then
-                if r.lang and r.lang ~= "" and r.lang ~= "-" then
+                if r.lang and r.lang ~= "" then
                     w(fmt("```%s\n", r.lang))
                 else
                     w("```\n")
@@ -559,12 +559,12 @@ local function main()
     local gf = open(SCAN_DIR .. "/.gitignore", "r")
     if gf then
         gf:close()
-        gi = "--exclude-from=" .. SCAN_DIR .. "/.gitignore"
+        gi = "--exclude-from=" .. shell_quote(SCAN_DIR .. "/.gitignore")
     end
 
     local cmd = fmt(
-        'grep -rl -I --exclude-dir=.git %s -e "@set" -e "@ass" -e "@cal" -e "@rai" "%s" 2>/dev/null',
-        gi, SCAN_DIR
+        'grep -rl -I --exclude-dir=.git %s -e "@set" -e "@ass" -e "@cal" -e "@rai" %s 2>/dev/null',
+        gi, shell_quote(SCAN_DIR)
     )
     local pipe = io.popen(cmd)
     local files = {}
@@ -578,7 +578,7 @@ local function main()
         -- @rai:3 Handle missing tagged files
         -- with empty output and stderr warning
         local f = open(OUTPUT, "w")
-        f:write("# Autodocs\n\nNo tagged documentation found.\n")
+        f:write(fmt("# %s\n\nNo tagged documentation found.\n", TITLE))
         f:close()
         io.stderr:write(fmt("autodocs: no tags found under %s\n", SCAN_DIR))
         return
@@ -599,13 +599,13 @@ local function main()
         -- @rai:3 Handle extraction failure
         -- with empty output and stderr warning
         local f = open(OUTPUT, "w")
-        f:write("# Autodocs\n\nNo tagged documentation found.\n")
+        f:write(fmt("# %s\n\nNo tagged documentation found.\n", TITLE))
         f:close()
         io.stderr:write(fmt("autodocs: tags found but no extractable docs under %s\n", SCAN_DIR))
         return
     end
 
-    -- @cal:6 Render documentation, write output, and report ratio
+    -- @cal:7 Render documentation, write output, and report ratio
     local markdown = render_markdown()
     local f = open(OUTPUT, "w")
     f:write(markdown)
@@ -617,3 +617,24 @@ end
 
 -- @cal:1 Entry point
 main()
+
+-- Fixes applied during review:
+--
+-- 1. Tag count bug: @cal:6 was @cal:7 — the io.stderr:write call wraps
+--    across two lines but only 6 were captured, truncating the code block
+--    in the generated readme.  Changed to @cal:7.
+--
+-- 2. Double file open: get_lang opened every file to check for a shebang,
+--    then process_file opened the same file again for bulk reading.  Now
+--    process_file reads first, extracts the first line from the buffer,
+--    and passes it to get_lang — one syscall per file instead of two.
+--
+-- 3. Shell quoting: SCAN_DIR was interpolated into io.popen strings with
+--    only double quotes.  A path containing ", $(), or backticks would
+--    break or execute unexpectedly.  All io.popen paths now go through
+--    shell_quote which wraps in single quotes with proper escaping.
+--
+-- 4. Sentinel value: emit() set lang to "-" when the file had no known
+--    extension or shebang, then render_markdown checked r.lang ~= "-".
+--    Replaced with the idiomatic empty-string check (r.lang ~= "") so
+--    no special sentinel is needed.
