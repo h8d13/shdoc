@@ -42,16 +42,6 @@ US=$(printf '\037')
 
 ## Asserts (@ass)
 
-### `/home/hadean/Desktop/Bin/autodocs:565`
-> Verify tagged files were discovered
-
-
-### `/home/hadean/Desktop/Bin/autodocs:584`
-> Verify extraction produced results
-
-
-## Callers (@cal)
-
 ### `/home/hadean/Desktop/Bin/autodocs:41`
 > Test whether a line contains any documentation tag
 
@@ -77,6 +67,43 @@ get_tag() {
     esac
 }
 ```
+
+### `/home/hadean/Desktop/Bin/autodocs:108`
+> Detect comment style from a source line
+
+> supporting hash, dslash, cblock, html, dquote, squote, ddash
+
+```sh
+detect_style() {
+    _trim_lead "$1"
+    case "$_tl" in
+        '<!--'*)    _ds='html'   ;;
+        '/*'*)      _ds='cblock' ;;
+        '//'*)      _ds='dslash' ;;
+        '#'*)       _ds='hash'   ;;
+        '"""'*)     _ds='dquote' ;;
+        "'''"*)     _ds='squote' ;;
+        '--'*)      _ds='ddash'  ;;
+        *)          _ds='none'   ;;
+    esac
+}
+```
+
+### `/home/hadean/Desktop/Bin/autodocs:190`
+> Map file extension to fenced code block language
+
+> falling back to shebang detection for extensionless files
+
+
+### `/home/hadean/Desktop/Bin/autodocs:565`
+> Verify tagged files were discovered
+
+
+### `/home/hadean/Desktop/Bin/autodocs:584`
+> Verify extraction produced results
+
+
+## Callers (@cal)
 
 ### `/home/hadean/Desktop/Bin/autodocs:59`
 > Extract the subject line count from @tag:N syntax
@@ -129,37 +156,10 @@ strip_tags() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:108`
-> Detect comment style from a source line
-
-> supporting hash, dslash, cblock, html, dquote, squote, ddash
-
-```sh
-detect_style() {
-    _trim_lead "$1"
-    case "$_tl" in
-        '<!--'*)    _ds='html'   ;;
-        '/*'*)      _ds='cblock' ;;
-        '//'*)      _ds='dslash' ;;
-        '#'*)       _ds='hash'   ;;
-        '"""'*)     _ds='dquote' ;;
-        "'''"*)     _ds='squote' ;;
-        '--'*)      _ds='ddash'  ;;
-        *)          _ds='none'   ;;
-    esac
-}
-```
-
 ### `/home/hadean/Desktop/Bin/autodocs:124`
 > Strip comment delimiters and extract inner text
 
 > for all styles including block continuations
-
-
-### `/home/hadean/Desktop/Bin/autodocs:190`
-> Map file extension to fenced code block language
-
-> falling back to shebang detection for extensionless files
 
 
 ### `/home/hadean/Desktop/Bin/autodocs:239`
@@ -171,16 +171,90 @@ detect_style() {
 ### `/home/hadean/Desktop/Bin/autodocs:260`
 > Emit a documentation record or defer for subject capture
 
+```sh
+    _emit() {
+        if [ -n "$_pf_tag" ] && [ -n "$_pf_text" ]; then
+            _trim "$_pf_text"
+            if [ -n "$_tr" ]; then
+                if [ "$_pf_nsubj" -gt 0 ] 2>/dev/null; then
+                    _pf_lang_f="$_pf_lang"
+                    [ -z "$_pf_lang_f" ] && _pf_lang_f="-" || :
+                    _pf_pending="${_pf_tag}${TAB}${_pf_rel}:${_pf_start}${TAB}${_tr}${TAB}${_pf_lang_f}"
+                    _pf_cap_want="$_pf_nsubj"
+                    _pf_subj=""
+                else
+                    printf '%s\t%s:%s\t%s\t%s\n' "$_pf_tag" "$_pf_rel" "$_pf_start" "$_tr" "$_pf_lang"
+                fi
+            fi
+        fi
+        _pf_in=""
+        _pf_tag=""
+        _pf_start=""
+        _pf_text=""
+        _pf_nsubj=0
+    }
+```
 
 ### `/home/hadean/Desktop/Bin/autodocs:283`
 > Flush deferred record with captured subject lines
 
+```sh
+    _flush_pending() {
+        if [ -n "$_pf_pending" ]; then
+            printf '%s\t%s\n' "$_pf_pending" "$_pf_subj"
+            _pf_pending=""
+            _pf_subj=""
+            _pf_capture=0
+        fi
+    }
+```
 
 ### `/home/hadean/Desktop/Bin/autodocs:517`
 > Render intermediate records into grouped markdown
 
 > with blockquotes for text and fenced code blocks for subjects
 
+```sh
+render_markdown() {
+    _rm_data="$1"
+    printf '# Autodocs\n\n'
+
+    _render_section() {
+        _rs_prefix="$1"
+        _rs_title="$2"
+        _rs_label="$3"
+
+        _rs_entries=$(printf '%s\n' "$_rm_data" | grep "^${_rs_prefix}${TAB}" 2>/dev/null || true)
+        [ -z "$_rs_entries" ] && return || :
+
+        printf '## %s (%s)\n\n' "$_rs_title" "$_rs_label"
+        printf '%s\n' "$_rs_entries" | while IFS="$TAB" read -r _rs_tag _rs_loc _rs_text _rs_lang _rs_subj; do
+            printf "### \`%s\`\n" "$_rs_loc"
+            printf '%s' "$_rs_text" | tr '\037' '\n' | while IFS="" read -r _rs_line || [ -n "$_rs_line" ]; do
+                _trim "$_rs_line"
+                [ -n "$_tr" ] && printf '> %s\n\n' "$_tr" || :
+            done
+            if [ -n "$_rs_subj" ]; then
+                if [ -n "$_rs_lang" ] && [ "$_rs_lang" != "-" ]; then
+                    printf '```%s\n' "$_rs_lang"
+                else
+                    printf '```\n'
+                fi
+                printf '%s' "$_rs_subj" | tr '\037' '\n' | while IFS="" read -r _rs_line || [ -n "$_rs_line" ]; do
+                    printf '%s\n' "$_rs_line"
+                done
+                printf '```\n'
+            fi
+            printf '\n'
+        done
+    }
+
+    _render_section "SET" "Setters" "@set"
+    _render_section "ASS" "Asserts" "@ass"
+    _render_section "CAL" "Callers" "@cal"
+    _render_section "RAI" "Raisers" "@rai"
+}
+```
 
 ### `/home/hadean/Desktop/Bin/autodocs:560`
 > Discover files containing documentation tags

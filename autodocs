@@ -38,7 +38,7 @@ _trim() {
     _tr="$_tt"
 }
 
-# @cal:6 Test whether a line contains any documentation tag
+# @ass:6 Test whether a line contains any documentation tag
 has_tag() {
     case "$1" in
         *'@set'*|*'@ass'*|*'@cal'*|*'@rai'*) return 0 ;;
@@ -46,7 +46,7 @@ has_tag() {
     esac
 }
 
-# @cal:8 Classify a tagged line into SET, ASS, CAL, or RAI
+# @ass:8 Classify a tagged line into SET, ASS, CAL, or RAI
 get_tag() {
     case "$1" in
         *'@set'*) _gt='SET' ;;
@@ -105,7 +105,7 @@ strip_tags() {
     esac
 }
 
-# @cal:13 Detect comment style from a source line
+# @ass:13 Detect comment style from a source line
 # supporting hash, dslash, cblock, html, dquote, squote, ddash
 detect_style() {
     _trim_lead "$1"
@@ -187,7 +187,7 @@ strip_comment() {
     esac
 }
 
-# @cal Map file extension to fenced code block language
+# @ass Map file extension to fenced code block language
 # falling back to shebang detection for extensionless files
 _get_lang() {
     case "${1##*.}" in
@@ -257,7 +257,7 @@ process_file() {
     _pf_subj=""
     _pf_pending=""
 
-    # @cal Emit a documentation record or defer for subject capture
+    # @cal:21 Emit a documentation record or defer for subject capture
     _emit() {
         if [ -n "$_pf_tag" ] && [ -n "$_pf_text" ]; then
             _trim "$_pf_text"
@@ -280,7 +280,7 @@ process_file() {
         _pf_nsubj=0
     }
 
-    # @cal Flush deferred record with captured subject lines
+    # @cal:8 Flush deferred record with captured subject lines
     _flush_pending() {
         if [ -n "$_pf_pending" ]; then
             printf '%s\t%s\n' "$_pf_pending" "$_pf_subj"
@@ -514,7 +514,7 @@ process_file() {
     _flush_pending
 }
 
-# @cal Render intermediate records into grouped markdown
+# @cal:39 Render intermediate records into grouped markdown
 # with blockquotes for text and fenced code blocks for subjects
 render_markdown() {
     _rm_data="$1"
