@@ -86,6 +86,7 @@ _strip_tag_num() {
 }
 
 # @cal:17 Remove @tag or @tag:N syntax from comment text
+# delegates to _strip_tag_num for :N variants
 strip_tags() {
     case "$1" in
         *'@set:'[0-9]*) _strip_tag_num "$1" "@set" ;;
@@ -238,8 +239,9 @@ _get_lang() {
 # @cal Walk one file as a line-by-line state machine
 # extracting tagged comments into tab-delimited records
 process_file() {
-    # @set:14 Initialize file path and state machine variables
-    # for tracking comment blocks and subject capture
+    # @set:14 Initialize per-file state machine variables
+    # _get_lang sets _gl via result-variable pattern
+    # avoiding $() subshell fork, read back as _pf_lang
     _pf_path="$1"
     _pf_rel="$_pf_path"
     _get_lang "$_pf_path"

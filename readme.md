@@ -16,10 +16,12 @@ TAB=$(printf '\t')
 US=$(printf '\037')
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:241`
-> Initialize file path and state machine variables
+### `/home/hadean/Desktop/Bin/autodocs:242`
+> Initialize per-file state machine variables
 
-> for tracking comment blocks and subject capture
+> _get_lang sets _gl via result-variable pattern
+
+> avoiding $() subshell fork, read back as _pf_lang
 
 ```sh
     _pf_path="$1"
@@ -40,11 +42,11 @@ US=$(printf '\037')
 
 ## Asserts (@ass)
 
-### `/home/hadean/Desktop/Bin/autodocs:563`
+### `/home/hadean/Desktop/Bin/autodocs:565`
 > Verify tagged files were discovered
 
 
-### `/home/hadean/Desktop/Bin/autodocs:582`
+### `/home/hadean/Desktop/Bin/autodocs:584`
 > Verify extraction produced results
 
 
@@ -105,6 +107,8 @@ get_subject_count() {
 ### `/home/hadean/Desktop/Bin/autodocs:88`
 > Remove @tag or @tag:N syntax from comment text
 
+> delegates to _strip_tag_num for :N variants
+
 ```sh
 strip_tags() {
     case "$1" in
@@ -125,7 +129,7 @@ strip_tags() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:107`
+### `/home/hadean/Desktop/Bin/autodocs:108`
 > Detect comment style from a source line
 
 > supporting hash, dslash, cblock, html, dquote, squote, ddash
@@ -146,39 +150,39 @@ detect_style() {
 }
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:123`
+### `/home/hadean/Desktop/Bin/autodocs:124`
 > Strip comment delimiters and extract inner text
 
 > for all styles including block continuations
 
 
-### `/home/hadean/Desktop/Bin/autodocs:189`
+### `/home/hadean/Desktop/Bin/autodocs:190`
 > Map file extension to fenced code block language
 
 > falling back to shebang detection for extensionless files
 
 
-### `/home/hadean/Desktop/Bin/autodocs:238`
+### `/home/hadean/Desktop/Bin/autodocs:239`
 > Walk one file as a line-by-line state machine
 
 > extracting tagged comments into tab-delimited records
 
 
-### `/home/hadean/Desktop/Bin/autodocs:258`
+### `/home/hadean/Desktop/Bin/autodocs:260`
 > Emit a documentation record or defer for subject capture
 
 
-### `/home/hadean/Desktop/Bin/autodocs:281`
+### `/home/hadean/Desktop/Bin/autodocs:283`
 > Flush deferred record with captured subject lines
 
 
-### `/home/hadean/Desktop/Bin/autodocs:515`
+### `/home/hadean/Desktop/Bin/autodocs:517`
 > Render intermediate records into grouped markdown
 
 > with blockquotes for text and fenced code blocks for subjects
 
 
-### `/home/hadean/Desktop/Bin/autodocs:558`
+### `/home/hadean/Desktop/Bin/autodocs:560`
 > Discover files containing documentation tags
 
 ```sh
@@ -187,7 +191,7 @@ detect_style() {
         "$SCAN_DIR" 2>/dev/null) || true
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:574`
+### `/home/hadean/Desktop/Bin/autodocs:576`
 > Process all discovered files into intermediate records
 
 ```sh
@@ -199,7 +203,7 @@ detect_style() {
     )
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:591`
+### `/home/hadean/Desktop/Bin/autodocs:593`
 > Render documentation and write output file
 
 ```sh
@@ -207,7 +211,7 @@ detect_style() {
     printf 'autodocs: wrote %s\n' "$OUTPUT" >&2
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:596`
+### `/home/hadean/Desktop/Bin/autodocs:598`
 > Entry point
 
 ```sh
@@ -216,7 +220,7 @@ main
 
 ## Raisers (@rai)
 
-### `/home/hadean/Desktop/Bin/autodocs:565`
+### `/home/hadean/Desktop/Bin/autodocs:567`
 > Handle missing tagged files
 
 > with empty output and stderr warning
@@ -227,7 +231,7 @@ main
         return 0
 ```
 
-### `/home/hadean/Desktop/Bin/autodocs:584`
+### `/home/hadean/Desktop/Bin/autodocs:586`
 > Handle extraction failure
 
 > with empty output and stderr warning
