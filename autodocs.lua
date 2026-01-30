@@ -579,7 +579,7 @@ local function process_file(filepath)
     total_input = total_input + ln
 end
 
--- @run:76 Render `records` into grouped markdown
+-- @run:70 Render `records` into grouped markdown
 -- with blockquotes for text and fenced code blocks for subjects
 local function render_markdown(grouped)
     local out = {}

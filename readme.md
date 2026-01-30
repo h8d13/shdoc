@@ -191,19 +191,19 @@ Untagged block comment start - scan for tags
 
 
 ### <a id="chk-1-21"></a>1.21 ~/Desktop/Bin/autodocs.lua:677
-*↳ [Runners 1.16](#run-1-16)*
+*↳ [Runners 1.17](#run-1-17)*
 
 Verify tagged files were discovered
 
 
 ### <a id="chk-1-22"></a>1.22 ~/Desktop/Bin/autodocs.lua:698
-*↳ [Runners 1.16](#run-1-16)*
+*↳ [Runners 1.17](#run-1-17)*
 
 Verify extraction produced results
 
 
 ### <a id="chk-1-23"></a>1.23 ~/Desktop/Bin/autodocs.lua:744
-*↳ [Runners 1.16](#run-1-16)*
+*↳ [Runners 1.17](#run-1-17)*
 
 Render and compare against existing output
 
@@ -683,16 +683,41 @@ local function render_markdown(grouped)
 
     return concat(out)
 end
-
--- @run Main function
-local function main()
-    -- @run:17 Discover files containing documentation tags
-    -- respect `.gitignore` patterns via `grep --exclude-from`
-    local gi = ""
 ```
 
-### <a id="run-1-17"></a>1.17 ~/Desktop/Bin/autodocs.lua:691
-*↳ [Runners 1.16](#run-1-16)*
+### <a id="run-1-17"></a>1.17 ~/Desktop/Bin/autodocs.lua:655
+Main function
+
+
+### <a id="run-1-18"></a>1.18 ~/Desktop/Bin/autodocs.lua:657
+*↳ [Runners 1.17](#run-1-17)*
+
+Discover files containing documentation tags
+
+> respect `.gitignore` patterns via `grep --exclude-from`
+
+```lua
+    local gi = ""
+    local gf = open(SCAN_DIR .. "/.gitignore", "r")
+    if gf then
+        gf:close()
+        gi = "--exclude-from=" .. shell_quote(SCAN_DIR .. "/.gitignore")
+    end
+
+    local cmd = fmt(
+        'grep -rl -I --exclude-dir=.git %s -e "@def" -e "@chk" -e "@run" -e "@err" %s 2>/dev/null',
+        gi, shell_quote(SCAN_DIR)
+    )
+    local pipe = io.popen(cmd)
+    local files = {}
+    for line in pipe:lines() do
+        files[#files + 1] = line
+    end
+    pipe:close()
+```
+
+### <a id="run-1-19"></a>1.19 ~/Desktop/Bin/autodocs.lua:691
+*↳ [Runners 1.17](#run-1-17)*
 
 Process all discovered files into intermediate `records`
 
@@ -704,14 +729,14 @@ Process all discovered files into intermediate `records`
     end
 ```
 
-### <a id="run-1-18"></a>1.18 ~/Desktop/Bin/autodocs.lua:709
-*↳ [Runners 1.16](#run-1-16)*
+### <a id="run-1-20"></a>1.20 ~/Desktop/Bin/autodocs.lua:709
+*↳ [Runners 1.17](#run-1-17)*
 
 Resolve parents, assign indices, group by tag (single pass)
 
 
-### <a id="run-1-19"></a>1.19 ~/Desktop/Bin/autodocs.lua:757
-*↳ [Runners 1.16](#run-1-16)*
+### <a id="run-1-21"></a>1.21 ~/Desktop/Bin/autodocs.lua:757
+*↳ [Runners 1.17](#run-1-17)*
 
 Write output and report ratio
 
@@ -726,8 +751,8 @@ Write output and report ratio
         OUTPUT, ol, total_input, total_input > 0 and math.floor(ol * 100 / total_input) or 0))
 ```
 
-### <a id="run-1-20"></a>1.20 ~/Desktop/Bin/autodocs.lua:766
-*↳ [Runners 1.16](#run-1-16)*
+### <a id="run-1-22"></a>1.22 ~/Desktop/Bin/autodocs.lua:766
+*↳ [Runners 1.17](#run-1-17)*
 
 Run `stats.awk` on the output if `-s` flag is set
 
@@ -743,7 +768,7 @@ Run `stats.awk` on the output if `-s` flag is set
     end
 ```
 
-### <a id="run-1-21"></a>1.21 ~/Desktop/Bin/autodocs.lua:778
+### <a id="run-1-23"></a>1.23 ~/Desktop/Bin/autodocs.lua:778
 Entry point
 
 ```lua
