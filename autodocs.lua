@@ -1,4 +1,6 @@
 #!/usr/bin/env lua
+-- @chk:1
+-- `-s` outputs extra stats
 
 --########--
 --HLPARSER--
@@ -51,6 +53,7 @@ end
 local TITLE    = "Autodocs"
 local SCAN_DIR = arg[1] or "."
 local OUTPUT   = arg[2] or "readme.md"
+local STATS    = arg[3] == "-s"
 SCAN_DIR = gsub(SCAN_DIR, "/$", "")
 if sub(SCAN_DIR, 1, 1) ~= "/" then
     local ef = open("/proc/self/environ", "rb")
@@ -705,13 +708,15 @@ local function main()
     io.stderr:write(fmt("autodocs: wrote %s (%d/%d = %d%%)\n",
         OUTPUT, ol, total_input, total_input > 0 and math.floor(ol * 100 / total_input) or 0))
 
-    -- @run:4 Run `stats.awk` on the output if available
-    local script_dir = match(arg[0], "^(.*/)") or "./"
-    local stats_awk = script_dir .. "stats.awk"
-    local sf = open(stats_awk, "r")
-    if sf then
-        sf:close()
-        os.execute(fmt("awk -f %s %s >&2", shell_quote(stats_awk), shell_quote(OUTPUT)))
+    -- @run:5 Run `stats.awk` on the output if `-s` flag is set
+    if STATS then
+        local script_dir = match(arg[0], "^(.*/)") or "./"
+        local stats_awk = script_dir .. "stats.awk"
+        local sf = open(stats_awk, "r")
+        if sf then
+            sf:close()
+            os.execute(fmt("awk -f %s %s >&2", shell_quote(stats_awk), shell_quote(OUTPUT)))
+        end
     end
 end
 
